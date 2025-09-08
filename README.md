@@ -15,6 +15,7 @@ docker compose up --build
 ```
 
 Servicios disponibles:
+
 - Auth Service: `http://localhost:3001`
 - Health Service: `http://localhost:3000`
 - PostgreSQL: `localhost:5432`
