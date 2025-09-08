@@ -2,45 +2,103 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import dotenv from 'dotenv';
-import { logger } from './utils/logger';
-import { errorHandler } from './middleware/errorHandler';
-import { authRoutes } from './routes/auth';
-
-// Cargar variables de entorno
-dotenv.config();
+import router from './routes/auth';
+import { env } from './utils/env';
+import swaggerUi from 'swagger-ui-express';
+import swaggerJSDoc from 'swagger-jsdoc';
 
 const app = express();
-const PORT = process.env.AUTH_SERVICE_PORT || 3001;
 
-// Middleware de seguridad y logging
 app.use(helmet());
-app.use(cors());
-app.use(morgan('combined', { stream: { write: (message) => logger.info(message.trim()) } }));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(cors({ origin: env.corsOrigin }));
+app.use(morgan('dev'));
+app.use(express.json());
 
-// Rutas
-app.use('/auth', authRoutes);
+// Auth + Admin routes
+app.use(router);
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Servicio de autenticación funcionando correctamente',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    service: 'auth-service'
+// Health
+app.get('/health', (_req, res) => {
+  res.json({ success: true, service: 'auth-service' });
+});
+
+// Root helper
+app.get('/', (_req, res) => {
+  res.json({ ok: true, service: 'auth-service' });
+});
+
+// Swagger UI (OpenAPI)
+const swaggerSpec = swaggerJSDoc({
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'Auth Service API',
+      version: '1.0.0',
+      description: 'Endpoints de autenticación y rutas protegidas',
+    },
+    servers: [{ url: `http://localhost:${env.port}` }],
+    components: {
+      securitySchemes: {
+        bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+      },
+      schemas: {
+        LoginBody: {
+          type: 'object',
+          required: ['email', 'password'],
+          properties: {
+            email: { type: 'string', format: 'email' },
+            password: { type: 'string', minLength: 8 },
+          },
+        },
+        LoginResponse: {
+          type: 'object',
+          properties: {
+            accessToken: { type: 'string' },
+            user: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                email: { type: 'string' },
+                role: { type: 'string', enum: ['Admin'] },
+              },
+            },
+          },
+        },
+      },
+    },
+    paths: {
+      '/api/auth/login': {
+        post: {
+          summary: 'Login de administrador',
+          requestBody: {
+            required: true,
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/LoginBody' } } },
+          },
+          responses: {
+            '200': { description: 'OK', content: { 'application/json': { schema: { $ref: '#/components/schemas/LoginResponse' } } } },
+            '400': { description: 'Entrada inválida' },
+            '401': { description: 'Credenciales inválidas' },
+            '423': { description: 'Cuenta inactiva' },
+          },
+        },
+      },
+      '/api/admin/ping': {
+        get: {
+          summary: 'Ping Admin (protegido)',
+          security: [{ bearerAuth: [] }],
+          responses: { '200': { description: 'OK' }, '401': { description: 'No autorizado' }, '403': { description: 'Prohibido' } },
+        },
+      },
+    },
+  },
+  apis: [],
+});
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(env.port, '0.0.0.0', () => {
+    console.log(`Auth service listening on 0.0.0.0:${env.port}`);
   });
-});
-
-// Middleware de manejo de errores
-app.use(errorHandler);
-
-// Iniciar servidor
-app.listen(PORT, () => {
-  logger.info(`🔐 Servicio de autenticación ejecutándose en el puerto ${PORT}`);
-  logger.info(`📊 Entorno: ${process.env.NODE_ENV || 'development'}`);
-});
+}
 
 export default app;

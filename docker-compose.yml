@@ -17,6 +17,26 @@ services:
     networks:
       - backend-network
 
+  # Servicio de autenticación (login Admin)
+  auth-service:
+    build:
+      context: ./microservices/auth-service
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - AUTH_SERVICE_PORT=3001
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/healthdb
+      - JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+      - JWT_EXPIRES_IN=60m
+      - CORS_ORIGIN=http://localhost:8000
+    depends_on:
+      - postgres
+    command: sh -c "for i in $(seq 1 30); do npm run prisma:push && break || (echo 'Esperando Postgres...'; sleep 2); done; npm run seed; npm start"
+    networks:
+      - backend-network
+
   # Base de datos PostgreSQL (maestros e histórico)
   postgres:
     image: postgres:16-alpine

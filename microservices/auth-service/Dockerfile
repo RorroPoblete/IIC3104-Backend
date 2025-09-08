@@ -1,26 +1,28 @@
-FROM node:18-alpine
-
-# Crear directorio de trabajo
+FROM node:20-bookworm-slim AS base
 WORKDIR /app
 
-# Copiar archivos de configuración
 COPY package*.json ./
 COPY tsconfig.json ./
+COPY prisma ./prisma
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+# No hay package-lock.json en el repo, usar npm install
+RUN npm install
+RUN npx prisma generate
 
-# Instalar dependencias
-RUN npm ci --only=production
-
-# Copiar código fuente
-COPY src/ ./src/
-
-# Compilar TypeScript
+COPY src ./src
 RUN npm run build
 
-# Crear directorio para logs
-RUN mkdir -p logs
-
-# Exponer puerto
+FROM node:20-bookworm-slim
+WORKDIR /app
+ENV NODE_ENV=production
+# Dependencias del sistema en runtime
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+COPY --from=base /app/node_modules ./node_modules
+COPY --from=base /app/dist ./dist
+COPY --from=base /app/prisma ./prisma
+COPY package*.json ./
 EXPOSE 3001
-
-# Comando para ejecutar la aplicación
-CMD ["npm", "start"]
+RUN npm prune --omit=dev
+CMD ["node", "dist/index.js"]
