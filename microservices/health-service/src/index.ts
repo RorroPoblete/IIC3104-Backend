@@ -7,8 +7,20 @@ import swaggerJSDoc from 'swagger-jsdoc';
 
 dotenv.config();
 
+const requireEnv = (name: string) => {
+  const value = (process.env[name] ?? '').trim();
+  if (!value) {
+    throw new Error(`[env] Missing required environment variable ${name}`);
+  }
+  return value;
+};
+
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT_VALUE = requireEnv('PORT');
+const PORT = Number.parseInt(PORT_VALUE, 10);
+if (Number.isNaN(PORT) || PORT <= 0) {
+  throw new Error('[env] PORT must be a positive integer');
+}
 
 // Swagger setup
 const swaggerOptions = {
@@ -30,11 +42,11 @@ app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.get('/docs.json', (_req, res) => res.json(swaggerSpec));
 
 // PostgreSQL (datos maestros e histórico)
-const databaseUrl = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/healthdb';
+const databaseUrl = requireEnv('DATABASE_URL');
 const pgPool = new Pool({ connectionString: databaseUrl });
 
 // Redis (caché de validaciones)
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+const redisUrl = requireEnv('REDIS_URL');
 const redis = new Redis(redisUrl);
 
 /**

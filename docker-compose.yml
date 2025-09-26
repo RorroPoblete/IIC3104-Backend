@@ -31,9 +31,9 @@ services:
       - JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
       - JWT_EXPIRES_IN=60m
       - CORS_ORIGIN=http://localhost:8000
-      - AUTH0_DOMAIN=${AUTH0_DOMAIN:-dev-zf0t1haoznajlc0p.us.auth0.com}
-      - AUTH0_AUDIENCE=${AUTH0_AUDIENCE:-https://uc-grd-api}
-      - AUTH0_CLIENT_ID=${AUTH0_CLIENT_ID:-iAykGccBga5TpUWEul4FmtP2w1lRp2In}
+      - AUTH0_DOMAIN=${AUTH0_DOMAIN:?Missing AUTH0_DOMAIN}
+      - AUTH0_AUDIENCE=${AUTH0_AUDIENCE:?Missing AUTH0_AUDIENCE}
+      - AUTH0_CLIENT_ID=${AUTH0_CLIENT_ID:?Missing AUTH0_CLIENT_ID}
     depends_on:
       - postgres
     command: sh -c "for i in $(seq 1 30); do npm run prisma:push && break || (echo 'Esperando Postgres...'; sleep 2); done; npm run seed; npm start"
