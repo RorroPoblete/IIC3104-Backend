@@ -21,20 +21,29 @@ Servicios disponibles:
 - PostgreSQL: `localhost:5432`
 - Redis: `localhost:6379`
 
-## Login
+## Autenticación (Auth0)
 
-```bash
-POST http://localhost:3001/api/auth/login
-{
-  "email": "admin@demo.cl",
-  "password": "Admin!123"
-}
+- Configurar `.env` en la raíz de `IIC3104-Backend`:
+
 ```
+AUTH_SERVICE_PORT=3001
+CORS_ORIGIN=http://localhost:8000
+AUTH0_DOMAIN=tu-dominio.auth0.com
+AUTH0_AUDIENCE=https://uc-grd-api
+AUTH0_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxx
+```
+
+- El frontend obtiene la configuración desde `GET http://localhost:3001/public/config`.
+- Endpoints protegidos usan JWT RS256 de Auth0 (validación con JWKS).
 
 ## Documentación
 
-- Swagger: `http://localhost:3000/docs`
-- Health check: `http://localhost:3000/health`
+- Auth Service Swagger: `http://localhost:3001/docs`
+- Health check (health-service): `http://localhost:3000/health`
+- Config pública: `http://localhost:3001/public/config`
+- Rutas protegidas:
+  - `GET http://localhost:3001/api/admin/ping`
+  - `GET http://localhost:3001/api/me`
 
 ## Estructura
 

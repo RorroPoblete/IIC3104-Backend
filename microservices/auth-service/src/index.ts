@@ -27,6 +27,15 @@ app.get('/', (_req, res) => {
   res.json({ ok: true, service: 'auth-service' });
 });
 
+// Config pública para el frontend (no incluye secretos)
+app.get('/public/config', (_req, res) => {
+  res.json({
+    auth0Domain: env.auth0Domain,
+    auth0Audience: env.auth0Audience,
+    auth0ClientId: env.auth0ClientId,
+  });
+});
+
 // Swagger UI (OpenAPI)
 const swaggerSpec = swaggerJSDoc({
   definition: {
@@ -41,52 +50,21 @@ const swaggerSpec = swaggerJSDoc({
       securitySchemes: {
         bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
       },
-      schemas: {
-        LoginBody: {
-          type: 'object',
-          required: ['email', 'password'],
-          properties: {
-            email: { type: 'string', format: 'email' },
-            password: { type: 'string', minLength: 8 },
-          },
-        },
-        LoginResponse: {
-          type: 'object',
-          properties: {
-            accessToken: { type: 'string' },
-            user: {
-              type: 'object',
-              properties: {
-                id: { type: 'string' },
-                email: { type: 'string' },
-                role: { type: 'string', enum: ['Admin'] },
-              },
-            },
-          },
-        },
-      },
+      schemas: {},
     },
     paths: {
-      '/api/auth/login': {
-        post: {
-          summary: 'Login de administrador',
-          requestBody: {
-            required: true,
-            content: { 'application/json': { schema: { $ref: '#/components/schemas/LoginBody' } } },
-          },
-          responses: {
-            '200': { description: 'OK', content: { 'application/json': { schema: { $ref: '#/components/schemas/LoginResponse' } } } },
-            '400': { description: 'Entrada inválida' },
-            '401': { description: 'Credenciales inválidas' },
-            '423': { description: 'Cuenta inactiva' },
-          },
-        },
-      },
       '/api/admin/ping': {
         get: {
           summary: 'Ping Admin (protegido)',
           security: [{ bearerAuth: [] }],
           responses: { '200': { description: 'OK' }, '401': { description: 'No autorizado' }, '403': { description: 'Prohibido' } },
+        },
+      },
+      '/api/me': {
+        get: {
+          summary: 'Obtener claims del token (protegido)',
+          security: [{ bearerAuth: [] }],
+          responses: { '200': { description: 'OK' }, '401': { description: 'No autorizado' } },
         },
       },
     },
