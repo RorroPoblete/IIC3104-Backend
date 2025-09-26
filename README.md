@@ -12,7 +12,7 @@ cd IIC3104-Backend
 ```bash
 cp env.example .env
 ```
-Puedes usar los valores por defecto.
+Puedes usar los valores por defecto. `FRONTEND_ORIGIN` controla qué dominios pueden consumir `/public/config` (por defecto `http://localhost:8000`).
 
 ## 3) Ejecutar con Docker (recomendado)
 ```bash

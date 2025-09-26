@@ -11,9 +11,31 @@ services:
       - PORT=3000
       - DATABASE_URL=postgres://postgres:postgres@postgres:5432/healthdb
       - REDIS_URL=redis://redis:6379
+      - FRONTEND_ORIGIN=http://localhost:8000
     depends_on:
       - postgres
       - redis
+    networks:
+      - backend-network
+
+  # Microservicio de Codificación
+  codification-service:
+    build:
+      context: ./microservices/codification-service
+      dockerfile: Dockerfile
+    ports:
+      - "3004:3004"
+    environment:
+      - NODE_ENV=development
+      - CODIFICATION_SERVICE_PORT=3004
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/healthdb
+      - CORS_ORIGIN=http://localhost:8000
+      - UPLOAD_PATH=/app/uploads
+      - MAX_FILE_SIZE=10485760
+    volumes:
+      - codification_uploads:/app/uploads
+    depends_on:
+      - postgres
     networks:
       - backend-network
 
@@ -45,6 +67,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  codification_uploads:
 
 networks:
   backend-network:

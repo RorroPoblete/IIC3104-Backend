@@ -1,0 +1,167 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Tabla para controlar lotes de importación
+model ImportBatch {
+  id          String   @id @default(cuid())
+  filename    String
+  status      ImportStatus @default(PENDING)
+  totalRows   Int?
+  processedRows Int @default(0)
+  errorRows   Int @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  completedAt DateTime?
+
+  // Relaciones
+  stagingRows ImportStagingRow[]
+  normalizedData NormalizedData[]
+
+  @@map("import_batches")
+}
+
+// Tabla de staging para recibir el CSV tal cual
+model ImportStagingRow {
+  id        String @id @default(cuid())
+  batchId   String
+  rowNumber Int
+  rawData   Json   // Almacena toda la fila como JSON
+
+  // Relaciones
+  batch ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@map("import_staging_rows")
+}
+
+// Modelo normalizado mínimo para aplicar el lote
+model NormalizedData {
+  id        String @id @default(cuid())
+  batchId   String
+
+  // Campos principales del episodio
+  episodioCmbd           String?
+  edadAnos              Int?
+  sexo                  String?
+  conjuntoDx            String?
+  tipoActividad         String?
+  tipoIngreso           String?
+  servicioIngresoDesc   String?
+  servicioIngresoCod    String?
+  motivoEgreso          String?
+  medicoEgreso          String?
+  especialidadEgreso    String?
+  servicioEgresoCod     String?
+  servicioEgresoDesc    String?
+  
+  // Previsión
+  previsionCod          String?
+  previsionDesc         String?
+  prevision2Cod         String?
+  prevision2Desc        String?
+  
+  // Ley y convenios
+  leyCod                String?
+  leyDesc               String?
+  conveniosCod          String?
+  conveniosDesc         String?
+  
+  // Servicio de salud
+  servicioSaludCod      String?
+  servicioSaludDesc     String?
+  
+  // Estancias
+  estanciasPrequirurgicas Float?
+  estanciasPostquirurgicas Float?
+  emPreQuirurgica       Float?
+  emPostQuirurgica      Float?
+  estanciaEpisodio      Float?
+  estanciaRealEpisodio  Float?
+  horasEstancia         Float?
+  estanciaMedia         Float?
+  
+  // GRD
+  pesoGrdMedio          Float?
+  pesoMedioNorma        Float?
+  iemaIrBruto           Float?
+  emafIrBruta           Float?
+  impactoEstancias      Float?
+  irGravedad            String?
+  irMortalidad          String?
+  irTipoGrd             String?
+  irGrdCodigo           String?
+  irGrd                 String?
+  irPuntoCorteInferior  Float?
+  irPuntoCorteSuperior  Float?
+  emNorma               Float?
+  estanciasNorma        Float?
+  casosNorma            Float?
+  
+  // Fechas
+  fechaIngresoCompleta  DateTime?
+  fechaCompleta         DateTime?
+  
+  // Traslados
+  conjuntoServiciosTraslado String?
+  fechaTr1              DateTime?
+  fechaTr2              DateTime?
+  fechaTr3              DateTime?
+  fechaTr4              DateTime?
+  fechaTr5              DateTime?
+  fechaTr6              DateTime?
+  fechaTr7              DateTime?
+  fechaTr8              DateTime?
+  fechaTr9              DateTime?
+  fechaTr10             DateTime?
+  emTrasladosServicio   Float?
+  
+  // Facturación
+  facturacionTotal      Float?
+  especialidadMedica    String?
+  irAltaInlier          String?
+  
+  // Metadatos
+  anio                  Int?
+  mes                   Int?
+  diagnosticoPrincipal  String?
+  proced01Principal     String?
+  conjuntoProcedimientosSecundarios String?
+  
+  // Servicios de traslado
+  servicioIngresoCod1   String?
+  servicioCodTr1        String?
+  servicioCodTr2        String?
+  servicioCodTr3        String?
+  servicioCodTr4        String?
+  servicioCodTr5        String?
+  servicioCodTr6        String?
+  servicioCodTr7        String?
+  servicioCodTr8        String?
+  servicioCodTr9        String?
+  servicioCodTr10       String?
+  servicioEgresoCod2    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  batch ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@map("normalized_data")
+}
+
+enum ImportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  PARTIALLY_COMPLETED
+}

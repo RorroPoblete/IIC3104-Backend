@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import dotenv from 'dotenv';
 import { Pool } from 'pg';
 import Redis from 'ioredis';
@@ -9,6 +10,18 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+const allowedOrigins = process.env.FRONTEND_ORIGIN
+  ?.split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin: allowedOrigins?.length ? allowedOrigins : true,
+    credentials: true,
+  }),
+);
 
 // Swagger setup
 const swaggerOptions = {
@@ -36,6 +49,18 @@ const pgPool = new Pool({ connectionString: databaseUrl });
 // Redis (caché de validaciones)
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 const redis = new Redis(redisUrl);
+
+const readAuth0Config = () => ({
+  auth0Domain: (process.env.AUTH0_DOMAIN || '').trim(),
+  auth0Audience: (process.env.AUTH0_AUDIENCE || '').trim(),
+  auth0ClientId: (process.env.AUTH0_CLIENT_ID || '').trim(),
+});
+
+// Expose the Auth0 runtime configuration to the frontend
+app.get('/public/config', (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(readAuth0Config());
+});
 
 /**
  * @openapi
