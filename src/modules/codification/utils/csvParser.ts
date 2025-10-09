@@ -2,7 +2,7 @@ import csv from 'csv-parser';
 import fs from 'fs';
 import iconv from 'iconv-lite';
 import { Readable } from 'stream';
-import { logger } from './logger';
+import { logger } from '../../../shared/utils/logger';
 
 export const EXPECTED_COLUMNS = [
   'Episodio CMBD',
@@ -84,7 +84,7 @@ export const EXPECTED_COLUMNS = [
   'Servicio(cod) (tr8)',
   'Servicio(cod) (tr9)',
   'Servicio(cod) (tr10)',
-  'Servicio Egreso (Código)_2'
+  'Servicio Egreso (Código)_2',
 ];
 
 export interface CsvRow {
@@ -171,12 +171,12 @@ export class CsvParser {
       errors.push(`Número de columnas incorrecto. Esperado: ${EXPECTED_COLUMNS.length}, Encontrado: ${headers.length}`);
     }
 
-    const missingColumns = EXPECTED_COLUMNS.filter(col => !headers.includes(col));
+    const missingColumns = EXPECTED_COLUMNS.filter((col) => !headers.includes(col));
     if (missingColumns.length > 0) {
       errors.push(`Columnas faltantes: ${missingColumns.join(', ')}`);
     }
 
-    const extraColumns = headers.filter(col => !EXPECTED_COLUMNS.includes(col));
+    const extraColumns = headers.filter((col) => !EXPECTED_COLUMNS.includes(col));
     if (extraColumns.length > 0) {
       errors.push(`Columnas extra: ${extraColumns.join(', ')}`);
     }

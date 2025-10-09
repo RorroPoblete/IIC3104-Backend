@@ -1,97 +1,97 @@
 import { CsvRow } from './csvParser';
-import { logger } from './logger';
+import { logger } from '../../../shared/utils/logger';
 
 export interface NormalizedData {
-  episodioCmbd?: string;
-  edadAnos?: number;
-  sexo?: string;
-  conjuntoDx?: string;
-  tipoActividad?: string;
-  tipoIngreso?: string;
-  servicioIngresoDesc?: string;
-  servicioIngresoCod?: string;
-  motivoEgreso?: string;
-  medicoEgreso?: string;
-  especialidadEgreso?: string;
-  servicioEgresoCod?: string;
-  servicioEgresoDesc?: string;
+  episodioCmbd?: string | null;
+  edadAnos?: number | null;
+  sexo?: string | null;
+  conjuntoDx?: string | null;
+  tipoActividad?: string | null;
+  tipoIngreso?: string | null;
+  servicioIngresoDesc?: string | null;
+  servicioIngresoCod?: string | null;
+  motivoEgreso?: string | null;
+  medicoEgreso?: string | null;
+  especialidadEgreso?: string | null;
+  servicioEgresoCod?: string | null;
+  servicioEgresoDesc?: string | null;
 
-  previsionCod?: string;
-  previsionDesc?: string;
-  prevision2Cod?: string;
-  prevision2Desc?: string;
+  previsionCod?: string | null;
+  previsionDesc?: string | null;
+  prevision2Cod?: string | null;
+  prevision2Desc?: string | null;
 
-  leyCod?: string;
-  leyDesc?: string;
-  conveniosCod?: string;
-  conveniosDesc?: string;
+  leyCod?: string | null;
+  leyDesc?: string | null;
+  conveniosCod?: string | null;
+  conveniosDesc?: string | null;
 
-  servicioSaludCod?: string;
-  servicioSaludDesc?: string;
+  servicioSaludCod?: string | null;
+  servicioSaludDesc?: string | null;
 
-  estanciasPrequirurgicas?: number;
-  estanciasPostquirurgicas?: number;
-  emPreQuirurgica?: number;
-  emPostQuirurgica?: number;
-  estanciaEpisodio?: number;
-  estanciaRealEpisodio?: number;
-  horasEstancia?: number;
-  estanciaMedia?: number;
+  estanciasPrequirurgicas?: number | null;
+  estanciasPostquirurgicas?: number | null;
+  emPreQuirurgica?: number | null;
+  emPostQuirurgica?: number | null;
+  estanciaEpisodio?: number | null;
+  estanciaRealEpisodio?: number | null;
+  horasEstancia?: number | null;
+  estanciaMedia?: number | null;
 
-  pesoGrdMedio?: number;
-  pesoMedioNorma?: number;
-  iemaIrBruto?: number;
-  emafIrBruta?: number;
-  impactoEstancias?: number;
-  irGravedad?: string;
-  irMortalidad?: string;
-  irTipoGrd?: string;
-  irGrdCodigo?: string;
-  irGrd?: string;
-  irPuntoCorteInferior?: number;
-  irPuntoCorteSuperior?: number;
-  emNorma?: number;
-  estanciasNorma?: number;
-  casosNorma?: number;
+  pesoGrdMedio?: number | null;
+  pesoMedioNorma?: number | null;
+  iemaIrBruto?: number | null;
+  emafIrBruta?: number | null;
+  impactoEstancias?: number | null;
+  irGravedad?: string | null;
+  irMortalidad?: string | null;
+  irTipoGrd?: string | null;
+  irGrdCodigo?: string | null;
+  irGrd?: string | null;
+  irPuntoCorteInferior?: number | null;
+  irPuntoCorteSuperior?: number | null;
+  emNorma?: number | null;
+  estanciasNorma?: number | null;
+  casosNorma?: number | null;
 
-  fechaIngresoCompleta?: Date;
-  fechaCompleta?: Date;
+  fechaIngresoCompleta?: Date | null;
+  fechaCompleta?: Date | null;
 
-  conjuntoServiciosTraslado?: string;
-  fechaTr1?: Date;
-  fechaTr2?: Date;
-  fechaTr3?: Date;
-  fechaTr4?: Date;
-  fechaTr5?: Date;
-  fechaTr6?: Date;
-  fechaTr7?: Date;
-  fechaTr8?: Date;
-  fechaTr9?: Date;
-  fechaTr10?: Date;
-  emTrasladosServicio?: number;
+  conjuntoServiciosTraslado?: string | null;
+  fechaTr1?: Date | null;
+  fechaTr2?: Date | null;
+  fechaTr3?: Date | null;
+  fechaTr4?: Date | null;
+  fechaTr5?: Date | null;
+  fechaTr6?: Date | null;
+  fechaTr7?: Date | null;
+  fechaTr8?: Date | null;
+  fechaTr9?: Date | null;
+  fechaTr10?: Date | null;
+  emTrasladosServicio?: number | null;
 
-  facturacionTotal?: number;
-  especialidadMedica?: string;
-  irAltaInlier?: string;
+  facturacionTotal?: number | null;
+  especialidadMedica?: string | null;
+  irAltaInlier?: string | null;
 
-  anio?: number;
-  mes?: number;
-  diagnosticoPrincipal?: string;
-  proced01Principal?: string;
-  conjuntoProcedimientosSecundarios?: string;
+  anio?: number | null;
+  mes?: number | null;
+  diagnosticoPrincipal?: string | null;
+  proced01Principal?: string | null;
+  conjuntoProcedimientosSecundarios?: string | null;
 
-  servicioIngresoCod1?: string;
-  servicioCodTr1?: string;
-  servicioCodTr2?: string;
-  servicioCodTr3?: string;
-  servicioCodTr4?: string;
-  servicioCodTr5?: string;
-  servicioCodTr6?: string;
-  servicioCodTr7?: string;
-  servicioCodTr8?: string;
-  servicioCodTr9?: string;
-  servicioCodTr10?: string;
-  servicioEgresoCod2?: string;
+  servicioIngresoCod1?: string | null;
+  servicioCodTr1?: string | null;
+  servicioCodTr2?: string | null;
+  servicioCodTr3?: string | null;
+  servicioCodTr4?: string | null;
+  servicioCodTr5?: string | null;
+  servicioCodTr6?: string | null;
+  servicioCodTr7?: string | null;
+  servicioCodTr8?: string | null;
+  servicioCodTr9?: string | null;
+  servicioCodTr10?: string | null;
+  servicioEgresoCod2?: string | null;
 }
 
 export class DataNormalizer {
@@ -190,21 +190,21 @@ export class DataNormalizer {
     };
   }
 
-  private static cleanString(value: string | undefined): string | undefined {
+  private static cleanString(value: string | undefined): string | null {
     if (!value || value.trim() === '') {
-      return undefined;
+      return null;
     }
     return value.trim();
   }
 
-  private static normalizeNumber(value: string | undefined): string | undefined {
+  private static normalizeNumber(value: string | undefined): string | null {
     if (!value) {
-      return undefined;
+      return null;
     }
 
     let normalized = value.trim();
     if (normalized === '') {
-      return undefined;
+      return null;
     }
 
     normalized = normalized.replace(/\s+/g, '');
@@ -224,56 +224,48 @@ export class DataNormalizer {
     normalized = normalized.replace(/[^0-9.+\-Ee]/g, '');
 
     if (normalized === '' || normalized === '+' || normalized === '-' || normalized === '.' || normalized === '+.' || normalized === '-.') {
-      return undefined;
+      return null;
     }
 
     return normalized;
   }
 
-  private static parseInteger(value: string | undefined): number | undefined {
+  private static parseInteger(value: string | undefined): number | null {
     const normalized = this.normalizeNumber(value);
-    if (normalized === undefined) {
-      return undefined;
+    if (normalized === null) {
+      return null;
     }
 
     const parsed = Number.parseFloat(normalized);
-    return Number.isNaN(parsed) ? undefined : Math.trunc(parsed);
+    return Number.isNaN(parsed) ? null : Math.trunc(parsed);
   }
 
-  private static parseFloat(value: string | undefined): number | undefined {
+  private static parseFloat(value: string | undefined): number | null {
     const normalized = this.normalizeNumber(value);
-    if (normalized === undefined) {
-      return undefined;
+    if (normalized === null) {
+      return null;
     }
 
     const parsed = Number.parseFloat(normalized);
-    return Number.isNaN(parsed) ? undefined : parsed;
+    return Number.isNaN(parsed) ? null : parsed;
   }
 
-  private static parseDate(value: string | undefined): Date | undefined {
+  private static parseDate(value: string | undefined): Date | null {
     if (!value || value.trim() === '') {
-      return undefined;
+      return null;
     }
 
     const cleaned = value.trim();
 
-    const formats = [
-      /^(\d{1,2})-(\d{1,2})-(\d{4})\s+(\d{1,2}):(\d{1,2})$/,
-      /^(\d{1,2})-(\d{1,2})-(\d{4})$/,
-      /^\d{4}-\d{2}-\d{2}$/,
-      /^\d{2}\/\d{2}\/\d{4}$/,
-      /^\d{4}\/\d{2}\/\d{2}$/,
-    ];
-
     const dateTimeMatch = cleaned.match(/^(\d{1,2})-(\d{1,2})-(\d{4})\s+(\d{1,2}):(\d{1,2})$/);
     if (dateTimeMatch) {
-      const [, day, month, year, hour, minute] = dateTimeMatch;
+      const [, day = '', month = '', year = '', hour = '', minute = ''] = dateTimeMatch;
       const date = new Date(
         parseInt(year, 10),
         parseInt(month, 10) - 1,
         parseInt(day, 10),
         parseInt(hour, 10),
-        parseInt(minute, 10)
+        parseInt(minute, 10),
       );
       if (!Number.isNaN(date.getTime())) {
         return date;
@@ -282,18 +274,15 @@ export class DataNormalizer {
 
     const dateMatch = cleaned.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
     if (dateMatch) {
-      const [, day, month, year] = dateMatch;
-      const date = new Date(
-        parseInt(year, 10),
-        parseInt(month, 10) - 1,
-        parseInt(day, 10)
-      );
+      const [, day = '', month = '', year = ''] = dateMatch;
+      const date = new Date(parseInt(year, 10), parseInt(month, 10) - 1, parseInt(day, 10));
       if (!Number.isNaN(date.getTime())) {
         return date;
       }
     }
 
-    for (const format of formats.slice(2)) {
+    const fallbackFormats = [/^\d{4}-\d{2}-\d{2}$/, /^\d{2}\/\d{2}\/\d{4}$/, /^\d{4}\/\d{2}\/\d{2}$/];
+    for (const format of fallbackFormats) {
       if (format.test(cleaned)) {
         const date = new Date(cleaned);
         if (!Number.isNaN(date.getTime())) {
@@ -301,8 +290,8 @@ export class DataNormalizer {
         }
       }
     }
-    
+
     logger.warn(`No se pudo parsear la fecha: ${cleaned}`);
-    return undefined;
+    return null;
   }
 }

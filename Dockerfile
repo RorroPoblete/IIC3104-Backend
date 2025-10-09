@@ -1,26 +1,27 @@
 FROM node:18-alpine
 
-# Crear directorio de trabajo
 WORKDIR /app
 
-# Copiar archivos de configuración
+RUN apk add --no-cache openssl
+
 COPY package*.json ./
+COPY prisma ./prisma
 COPY tsconfig.json ./
 
-# Instalar dependencias
-RUN npm ci --only=production
+RUN npm ci
 
-# Copiar código fuente
-COPY src/ ./src/
+COPY src ./src
+COPY docker/entrypoint.sh ./docker/entrypoint.sh
 
-# Compilar TypeScript
-RUN npm run build
+RUN npm run build \
+  && npm run prisma:generate \
+  && npm prune --production \
+  && chmod +x docker/entrypoint.sh \
+  && mkdir -p logs uploads
 
-# Crear directorio para logs
-RUN mkdir -p logs
+ENV NODE_ENV=production \
+    PORT=3000
 
-# Exponer puerto
 EXPOSE 3000
 
-# Comando para ejecutar la aplicación
-CMD ["npm", "start"]
+ENTRYPOINT ["/app/docker/entrypoint.sh"]

@@ -2,12 +2,12 @@ import express, { Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { prisma } from '../utils/prisma';
-import { logger } from '../utils/logger';
+import { prisma } from '../../../shared/db/prisma';
+import { logger } from '../../../shared/utils/logger';
 import { CsvParser } from '../utils/csvParser';
 import { DataNormalizer } from '../utils/dataNormalizer';
-import { asyncHandler } from '../middleware/errorHandler';
-import { env } from '../utils/env';
+import { asyncHandler } from '../../../shared/middleware/errorHandler';
+import { env } from '../../../config/env';
 
 const router = express.Router();
 
@@ -30,7 +30,10 @@ const upload = multer({
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     const allowedExtensions = ['.csv', '.xlsx'];
-    cb(allowedExtensions.includes(ext) ? null : new Error('Solo se permiten archivos CSV y XLSX'));
+    if (allowedExtensions.includes(ext)) {
+      return cb(null, true);
+    }
+    return cb(new Error('Solo se permiten archivos CSV y XLSX'));
   },
 });
 
@@ -128,7 +131,7 @@ router.post(
         },
       });
 
-      res.json({
+      return res.json({
         success: true,
         message: 'Importación completada',
         data: {
@@ -181,7 +184,7 @@ router.get(
       prisma.importBatch.count(),
     ]);
 
-    res.json({
+    return res.json({
       success: true,
       data: {
         batches,
@@ -198,8 +201,12 @@ router.get(
 
 router.get(
   '/batches/:id',
-  asyncHandler(async (req: Request, res: Response) => {
+  asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ success: false, message: 'Debe especificarse un ID de lote' });
+    }
 
     const batch = await prisma.importBatch.findUnique({
       where: { id },
@@ -217,14 +224,19 @@ router.get(
       return res.status(404).json({ success: false, message: 'Lote no encontrado' });
     }
 
-    res.json({ success: true, data: batch });
+    return res.json({ success: true, data: batch });
   }),
 );
 
 router.get(
   '/batches/:id/staging',
-  asyncHandler(async (req: Request, res: Response) => {
+  asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ success: false, message: 'Debe especificarse un ID de lote' });
+    }
+
     const { page, limit, skip } = getPagination(req, 100);
 
     const [stagingRows, total] = await Promise.all([
@@ -239,7 +251,7 @@ router.get(
       }),
     ]);
 
-    res.json({
+    return res.json({
       success: true,
       data: {
         stagingRows,
@@ -256,8 +268,13 @@ router.get(
 
 router.get(
   '/batches/:id/normalized',
-  asyncHandler(async (req: Request, res: Response) => {
+  asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ success: false, message: 'Debe especificarse un ID de lote' });
+    }
+
     const { page, limit, skip } = getPagination(req, 100);
 
     const [normalizedData, total] = await Promise.all([
@@ -272,7 +289,7 @@ router.get(
       }),
     ]);
 
-    res.json({
+    return res.json({
       success: true,
       data: {
         normalizedData,
@@ -287,4 +304,4 @@ router.get(
   }),
 );
 
-export default router;
+export const codificationRouter = router;
