@@ -1,25 +1,22 @@
 # render.yaml
-# This file defines the infrastructure for your application on Render.
+# Corrected version for deployment on Render.
 
 services:
-  # 1. The Backend Web Service (from your 'backend' Docker Compose service)
+  # 1. The Backend Web Service
   - type: web
     name: backend
     env: docker
-    # Make sure this points to your Git repository
-    repo: https://github.com/your-username/your-repo-name.git
+    repo: https://github.com/your-username/your-repo-name.git # Be sure to update this!
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /api/health # Recommended: Add a health check endpoint to your app
-    plan: starter # Or your preferred instance type
+    healthCheckPath: /api/health # Recommended: Add a health check endpoint
+    plan: starter
     
-    # Environment variables for the backend service
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 3000
       - key: CORS_ORIGIN
-        # Render automatically sets this to your service's public URL
         value: ${RENDER_EXTERNAL_URL}
       - key: UPLOAD_PATH
         value: /app/uploads
@@ -28,7 +25,7 @@ services:
       - key: LOG_LEVEL
         value: info
       
-      # Secrets (add these in the Render dashboard, not here)
+      # Secrets (add these in the Render dashboard)
       - key: AUTH0_DOMAIN
         fromSecret: true
       - key: AUTH0_AUDIENCE
@@ -39,34 +36,30 @@ services:
       # Connection strings from Render's managed services
       - key: DATABASE_URL
         fromService:
-          type: pserv # Refers to the PostgreSQL service below
+          type: pserv
           name: healthdb-postgres
           property: internalConnectionString
       - key: REDIS_URL
         fromService:
-          type: pserv # Refers to the Redis service below
+          type: pserv
           name: healthdb-redis
           property: internalConnectionString
 
-    # Persistent storage for file uploads
     disks:
       - name: backend-uploads
         mountPath: /app/uploads
-        sizeGB: 1 # Adjust size as needed
+        sizeGB: 1
 
-# 2. The Managed PostgreSQL Database (from your 'postgres' service)
+  # 2. The Managed PostgreSQL Database (CORRECTED)
   - type: pserv
     name: healthdb-postgres
     env: postgres
-    # Render's managed Postgres service
-    plan: free # Or your preferred database plan
-    postgres:
-      databaseName: healthdb
-      user: postgres
-    
-# 3. The Managed Redis Instance (from your 'redis' service)
+    plan: free
+    databaseName: healthdb # ✅ Correctly un-indented
+    databaseUser: postgres    # ✅ Correctly un-indented
+
+  # 3. The Managed Redis Instance
   - type: pserv
     name: healthdb-redis
     env: redis
-    # Render's managed Redis service
-    plan: free # Or your preferred Redis plan
+    plan: free
