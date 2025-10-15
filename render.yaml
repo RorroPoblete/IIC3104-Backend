@@ -1,65 +1,46 @@
-# render.yaml
-# Corrected version for deployment on Render.
-
 services:
-  # 1. The Backend Web Service
   - type: web
-    name: backend
-    env: docker
-    repo: https://github.com/your-username/your-repo-name.git # Be sure to update this!
-    dockerfilePath: ./Dockerfile
-    healthCheckPath: /api/health # Recommended: Add a health check endpoint
+    name: iic3104-backend
+    runtime: docker
+    region: oregon
     plan: starter
-    
+
+    # Si tu Dockerfile está en la raíz, no necesitas rootDir.
+    # Si estuviera en subcarpeta, agrega:
+    # rootDir: .
+    # dockerfilePath: Dockerfile
+
+    healthCheckPath: /health
+
+    # (Opcional) corre migraciones al iniciar y luego arranca
+    startCommand: >
+      npx prisma migrate deploy && node dist/main.js
+
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 3000
-      - key: CORS_ORIGIN
-        value: ${RENDER_EXTERNAL_URL}
-      - key: UPLOAD_PATH
-        value: /app/uploads
-      - key: MAX_FILE_SIZE
-        value: 10485760
+
+      # Las tres siguientes las llenarás en el panel (Render no las versiona)
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+
+      - key: JWT_EXPIRES_IN
+        value: 24h
       - key: LOG_LEVEL
         value: info
-      
-      # Secrets (add these in the Render dashboard)
-      - key: AUTH0_DOMAIN
-        fromSecret: true
-      - key: AUTH0_AUDIENCE
-        fromSecret: true
-      - key: AUTH0_CLIENT_ID
-        fromSecret: true
+      - key: CORS_ORIGIN
+        value: https://tu-frontend.onrender.com
+      - key: UPLOAD_PATH
+        value: /var/data/uploads
+      - key: MAX_FILE_SIZE
+        value: "10485760"
 
-      # Connection strings from Render's managed services
-      - key: DATABASE_URL
-        fromService:
-          type: pserv
-          name: healthdb-postgres
-          property: internalConnectionString
-      - key: REDIS_URL
-        fromService:
-          type: pserv
-          name: healthdb-redis
-          property: internalConnectionString
-
-    disks:
-      - name: backend-uploads
-        mountPath: /app/uploads
-        sizeGB: 1
-
-  # 2. The Managed PostgreSQL Database (CORRECTED)
-  - type: pserv
-    name: healthdb-postgres
-    env: postgres
-    plan: free
-    databaseName: healthdb # ✅ Correctly un-indented
-    databaseUser: postgres    # ✅ Correctly un-indented
-
-  # 3. The Managed Redis Instance
-  - type: pserv
-    name: healthdb-redis
-    env: redis
-    plan: free
+    # Disco para uploads (opcional)
+    disk:
+      name: uploads
+      mountPath: /var/data
+      sizeGB: 2
