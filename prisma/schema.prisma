@@ -165,3 +165,63 @@ enum ImportStatus {
   FAILED
   PARTIALLY_COMPLETED
 }
+
+// Tabla para almacenar archivos de Norma Minsal
+model NormaMinsalFile {
+  id          String   @id @default(cuid())
+  filename    String
+  description String?
+  status      ImportStatus @default(PENDING)
+  totalRows   Int?
+  processedRows Int @default(0)
+  errorRows   Int @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  completedAt DateTime?
+  isActive    Boolean @default(false) // Solo un archivo puede estar activo a la vez
+
+  // Relaciones
+  data NormaMinsalData[]
+
+  @@map("norma_minsal_files")
+}
+
+// Tabla para almacenar datos de Norma Minsal
+model NormaMinsalData {
+  id          String @id @default(cuid())
+  fileId      String
+  
+  // Campos principales de la norma MINSAL basados en el CSV real
+  grd                     String  // Código GRD - campo principal para matching
+  tipoGrd                 String?
+  gravedad                String?
+  totalAltas              Int?
+  totalEst                Float?
+  estMedia                Float?
+  altasDepu               Int?
+  totalEstDepu            Float?
+  estMediaDepuG           Float?
+  numOutInfG              Int?
+  nOutliersSup            Int?
+  exitus                  Int?
+  percentil25             Float?
+  percentil50             Float?
+  percentil75             Float?
+  puntoCorteInferior      Float?
+  puntoCorteSuperior      Float?
+  pesoTotal               Float?
+  pesoTotalDepu           Float?
+  
+  // Campos adicionales que puedan venir en el CSV
+  rawData     Json   // Almacena toda la fila como JSON para flexibilidad
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  file NormaMinsalFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([grd])
+  @@index([fileId])
+  @@map("norma_minsal_data")
+}

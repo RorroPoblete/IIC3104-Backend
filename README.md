@@ -30,10 +30,24 @@ docker compose down -v --rmi local --remove-orphans           # (Opcional) Limpi
 
 ## Endpoints útiles
 
+### Sistema
 - `GET /health` comprueba estado del backend, PostgreSQL y Redis.
 - `GET /public/config` entrega configuración pública (Auth0) para el frontend.
+
+### Codificación
 - `POST /api/codification/import/csv` importa archivos CSV (campo `file` en multipart/form-data).
 - `GET /api/codification/import/batches` y derivados permiten consultar lotes, staging y datos normalizados.
+
+### Norma Minsal
+- `POST /api/normaminsal/import/csv` importa un archivo CSV de Norma Minsal (campo `file` en multipart/form-data, opcional `description`).
+- `GET /api/normaminsal/import/batches` lista todos los lotes de Norma Minsal con paginación.
+- `GET /api/normaminsal/import/batches/:id` obtiene detalles de un lote específico.
+- `GET /api/normaminsal/import/batches/:id/data` obtiene los datos de un lote específico con paginación.
+- `PATCH /api/normaminsal/import/batches/:id/activate` activa un lote para ser usado en las consultas.
+- `GET /api/normaminsal/import/active-batch` obtiene el lote activo actual.
+- `GET /api/normaminsal/import/query/grd/:grdCode` busca información de un GRD en el lote activo (query param opcional `gravedad`).
+- `GET /api/normaminsal/import/query/grd/:grdCode/all` obtiene todas las variantes de gravedad de un GRD.
+- `DELETE /api/normaminsal/import/batches/:id` elimina un lote y sus datos asociados.
 
 ## Desarrollo local sin Docker
 
@@ -54,5 +68,6 @@ npx prisma db push
 
 - `src/config`: carga de variables de entorno.
 - `src/modules/codification`: rutas y utilidades de importación CSV.
+- `src/modules/normaminsal`: gestión de archivos de Norma Minsal.
 - `src/modules/system`: health check y configuración pública.
 - `src/shared`: clientes, logger y middlewares comunes.
