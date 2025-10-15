@@ -1,0 +1,72 @@
+# render.yaml
+# This file defines the infrastructure for your application on Render.
+
+services:
+  # 1. The Backend Web Service (from your 'backend' Docker Compose service)
+  - type: web
+    name: backend
+    env: docker
+    # Make sure this points to your Git repository
+    repo: https://github.com/your-username/your-repo-name.git
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health # Recommended: Add a health check endpoint to your app
+    plan: starter # Or your preferred instance type
+    
+    # Environment variables for the backend service
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: CORS_ORIGIN
+        # Render automatically sets this to your service's public URL
+        value: ${RENDER_EXTERNAL_URL}
+      - key: UPLOAD_PATH
+        value: /app/uploads
+      - key: MAX_FILE_SIZE
+        value: 10485760
+      - key: LOG_LEVEL
+        value: info
+      
+      # Secrets (add these in the Render dashboard, not here)
+      - key: AUTH0_DOMAIN
+        fromSecret: true
+      - key: AUTH0_AUDIENCE
+        fromSecret: true
+      - key: AUTH0_CLIENT_ID
+        fromSecret: true
+
+      # Connection strings from Render's managed services
+      - key: DATABASE_URL
+        fromService:
+          type: pserv # Refers to the PostgreSQL service below
+          name: healthdb-postgres
+          property: internalConnectionString
+      - key: REDIS_URL
+        fromService:
+          type: pserv # Refers to the Redis service below
+          name: healthdb-redis
+          property: internalConnectionString
+
+    # Persistent storage for file uploads
+    disks:
+      - name: backend-uploads
+        mountPath: /app/uploads
+        sizeGB: 1 # Adjust size as needed
+
+# 2. The Managed PostgreSQL Database (from your 'postgres' service)
+  - type: pserv
+    name: healthdb-postgres
+    env: postgres
+    # Render's managed Postgres service
+    plan: free # Or your preferred database plan
+    postgres:
+      databaseName: healthdb
+      user: postgres
+    
+# 3. The Managed Redis Instance (from your 'redis' service)
+  - type: pserv
+    name: healthdb-redis
+    env: redis
+    # Render's managed Redis service
+    plan: free # Or your preferred Redis plan
