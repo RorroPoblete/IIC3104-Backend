@@ -13,8 +13,7 @@ services:
     healthCheckPath: /health
 
     # (Opcional) corre migraciones al iniciar y luego arranca
-    startCommand: >
-      npx prisma migrate deploy && node dist/main.js
+    
 
     envVars:
       - key: NODE_ENV
