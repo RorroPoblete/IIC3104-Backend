@@ -31,8 +31,6 @@ services:
         value: 24h
       - key: LOG_LEVEL
         value: info
-      - key: CORS_ORIGIN
-        value: https://tu-frontend.onrender.com
       - key: UPLOAD_PATH
         value: /var/data/uploads
       - key: MAX_FILE_SIZE

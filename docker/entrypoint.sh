@@ -2,7 +2,7 @@
 set -e
 
 echo "Running database migrations..."
-npx prisma db push
+npx prisma migrate deploy
 
 echo "Starting application..."
 exec node dist/server.js

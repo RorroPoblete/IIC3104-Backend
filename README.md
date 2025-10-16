@@ -58,7 +58,19 @@ docker compose down -v --rmi local --remove-orphans           # (Opcional) Limpi
 
 ## Migraciones Prisma
 
-El entrypoint del contenedor ejecuta `npx prisma db push` automáticamente. En desarrollo, puedes sincronizar manualmente con:
+### Producción (Render)
+
+El contenedor ejecuta `npx prisma migrate deploy` al iniciar. Esto aplica migraciones versionadas en `prisma/migrations`.
+
+### Desarrollo
+
+Para crear y aplicar migraciones durante el desarrollo:
+
+```bash
+npx prisma migrate dev --name <cambio>
+```
+
+Para sincronizar sin crear migraciones (entornos efímeros):
 
 ```bash
 npx prisma db push
