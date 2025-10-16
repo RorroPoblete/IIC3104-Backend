@@ -10,7 +10,11 @@ import { normaMinsalRouter } from './modules/normaminsal/routes/normaminsal';
 
 const app = express();
 
-const allowedOrigins = env.corsOrigins.length ? env.corsOrigins : true;
+const allowedOrigins = env.corsOrigins.length
+  ? env.corsOrigins
+  : env.isProduction
+    ? ['https://iic3104-frontend.onrender.com']
+    : true;
 
 app.use(helmet());
 app.use(
