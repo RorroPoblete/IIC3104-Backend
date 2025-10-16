@@ -6,6 +6,7 @@ import { env } from './config/env';
 import { errorHandler } from './shared/middleware/errorHandler';
 import { codificationRouter } from './modules/codification/routes/import';
 import { systemRouter } from './modules/system/routes/system';
+import { normaMinsalRouter } from './modules/normaminsal/routes/normaminsal';
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 app.use('/api/codification', codificationRouter);
+app.use('/api/normaminsal', normaMinsalRouter);
 app.use('/', systemRouter);
 
 app.use(errorHandler);
