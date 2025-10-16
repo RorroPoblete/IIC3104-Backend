@@ -2,6 +2,8 @@ import csv from 'csv-parser';
 import fs from 'fs';
 import iconv from 'iconv-lite';
 import { Readable } from 'stream';
+import * as XLSX from 'xlsx';
+import path from 'path';
 import { logger } from '../../../shared/utils/logger';
 
 export interface CsvRow {
@@ -63,9 +65,98 @@ export class NormaMinsalCsvParser {
     });
   }
 
+  private static parseXlsxFile(filePath: string): CsvParseResult {
+    try {
+      const workbook = XLSX.readFile(filePath);
+      const sheetName = workbook.SheetNames[0];
+      
+      if (!sheetName) {
+        return {
+          headers: [],
+          rows: [],
+          totalRows: 0,
+          errors: ['El archivo XLSX no contiene hojas'],
+        };
+      }
+      
+      const worksheet = workbook.Sheets[sheetName];
+      
+      if (!worksheet) {
+        return {
+          headers: [],
+          rows: [],
+          totalRows: 0,
+          errors: ['La hoja del archivo XLSX no se pudo leer'],
+        };
+      }
+      
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+        header: 1,
+        raw: false,
+        defval: '',
+      }) as string[][];
+
+      if (jsonData.length === 0) {
+        return {
+          headers: [],
+          rows: [],
+          totalRows: 0,
+          errors: ['El archivo XLSX está vacío'],
+        };
+      }
+
+      const headers = (jsonData[0] || []).map((header) => 
+        NormaMinsalCsvParser.normalizeHeader(String(header))
+      );
+      
+      const rows: CsvRow[] = [];
+      const errors: string[] = [];
+
+      for (let i = 1; i < jsonData.length; i++) {
+        const rowData = jsonData[i] || [];
+        const row: CsvRow = {};
+        
+        headers.forEach((header, index) => {
+          row[header] = rowData && rowData[index] ? String(rowData[index]).trim() : '';
+        });
+        
+        rows.push(row);
+
+        if (i % 1000 === 0) {
+          logger.info(`Procesadas ${i} filas de XLSX de Norma Minsal`);
+        }
+      }
+
+      logger.info(`Parseo de XLSX de Norma Minsal completado. Total filas: ${rows.length}`);
+      
+      return {
+        headers,
+        rows,
+        totalRows: rows.length,
+        errors,
+      };
+    } catch (error) {
+      logger.error('Error al parsear XLSX de Norma Minsal', error);
+      return {
+        headers: [],
+        rows: [],
+        totalRows: 0,
+        errors: [`Error al parsear archivo XLSX: ${error instanceof Error ? error.message : 'Error desconocido'}`],
+      };
+    }
+  }
+
   static async parseFile(filePath: string): Promise<CsvParseResult> {
-    const fileStream = fs.createReadStream(filePath).pipe(iconv.decodeStream('latin1'));
-    return NormaMinsalCsvParser.parseStream(fileStream);
+    const fileExtension = path.extname(filePath).toLowerCase();
+    
+    if (fileExtension === '.xlsx') {
+      logger.info('Parseando archivo XLSX de Norma Minsal');
+      return NormaMinsalCsvParser.parseXlsxFile(filePath);
+    } else {
+      logger.info('Parseando archivo CSV de Norma Minsal');
+      const fileStream = fs.createReadStream(filePath).pipe(iconv.decodeStream('latin1'));
+      return NormaMinsalCsvParser.parseStream(fileStream);
+    }
   }
 
   static async parseBuffer(buffer: Buffer): Promise<CsvParseResult> {

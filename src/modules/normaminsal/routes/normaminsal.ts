@@ -29,11 +29,11 @@ const upload = multer({
   limits: { fileSize: env.maxFileSize },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    const allowedExtensions = ['.csv'];
+    const allowedExtensions = ['.csv', '.xlsx'];
     if (allowedExtensions.includes(ext)) {
       return cb(null, true);
     }
-    return cb(new Error('Solo se permiten archivos CSV'));
+    return cb(new Error('Solo se permiten archivos CSV o XLSX'));
   },
 });
 
