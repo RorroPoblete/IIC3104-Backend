@@ -13,8 +13,9 @@ RUN npm ci
 COPY src ./src
 COPY docker/entrypoint.sh ./docker/entrypoint.sh
 
-RUN npm run build \
-  && npm run prisma:generate \
+# Generar Prisma Client antes de compilar TypeScript para evitar errores en build
+RUN npm run prisma:generate \
+  && npm run build \
   && npm prune --production \
   && chmod +x docker/entrypoint.sh \
   && mkdir -p logs uploads
