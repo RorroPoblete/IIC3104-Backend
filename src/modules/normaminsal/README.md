@@ -1,12 +1,12 @@
 # Módulo Norma Minsal
 
-Este módulo gestiona la importación, almacenamiento y consulta de archivos de Norma Minsal en formato CSV.
+Este módulo gestiona la importación, almacenamiento y consulta de archivos de Norma Minsal en formato CSV y Excel.
 
 ## Funcionalidad
 
 El módulo permite:
 
-1. **Subir archivos CSV** de Norma Minsal al servidor
+1. **Subir archivos CSV o Excel** de Norma Minsal al servidor
 2. **Almacenar los datos** en la base de datos de forma estructurada
 3. **Consultar los datos** por número de episodio
 4. **Gestionar múltiples archivos** y activar uno para uso activo
@@ -19,8 +19,9 @@ normaminsal/
 ├── routes/
 │   └── normaminsal.ts       # Endpoints REST
 └── utils/
-    ├── csvParser.ts          # Parser de archivos CSV
-    └── dataNormalizer.ts     # Normalización de datos
+    ├── csvParser.ts         # Parser de archivos CSV
+    ├── excelParser.ts       # Parser de archivos Excel
+    └── dataNormalizer.ts    # Normalización de datos
 ```
 
 ## Modelos de Base de Datos
@@ -69,13 +70,13 @@ Campos principales basados en el formato real del CSV de Norma Minsal:
 ## API Endpoints
 
 ### POST /api/normaminsal/import/csv
-Sube un nuevo archivo CSV de Norma Minsal.
+Sube un nuevo archivo CSV o Excel de Norma Minsal.
 
 **Request:**
 - Method: POST
 - Content-Type: multipart/form-data
 - Body:
-  - `file`: Archivo CSV (requerido)
+  - `file`: Archivo CSV o Excel (.csv, .xlsx, .xls) (requerido)
   - `description`: Descripción del archivo (opcional)
 
 **Response:**
@@ -316,27 +317,36 @@ El CSV de Norma Minsal debe tener el siguiente formato con las columnas exactas:
 - `Peso Total`: Peso total
 - `Peso Total Depu`: Peso total depurado
 
-**Ejemplo de datos:**
+**Ejemplo de datos CSV:**
 ```
 GRD;Tipo GRD;GRAVEDAD;Total Altas;Total Est;Est Media;...
 11011;;1;90;1152;12.8;85;936;11.01;0;5;1;5;10.5;17;0;35;218.97;206.805
 11012;;2;71;1593;22.44;69;1399;20.28;0;2;2;14;19;29;0;51;256.07;248.86
 ```
 
-El parser:
+## Formatos Soportados
+
+### CSV
 - Usa `;` como separador
 - Codificación Latin-1
 - Normaliza los nombres de las columnas
+- Almacena todos los datos en `rawData` para máxima flexibilidad
+
+### Excel (.xlsx, .xls)
+- Se procesa la primera hoja del archivo
+- Se extrae automáticamente la fila de encabezados
+- Normaliza los nombres de las columnas igual que en CSV
+- Soporta ambos formatos: Excel 2007+ (.xlsx) y Excel 97-2003 (.xls)
 - Almacena todos los datos en `rawData` para máxima flexibilidad
 
 ## Uso desde el Frontend
 
 ### Flujo de Trabajo
 
-1. **Importar archivo CSV:**
+1. **Importar archivo CSV o Excel:**
    ```javascript
    const formData = new FormData();
-   formData.append('file', csvFile);
+   formData.append('file', csvFile); // Puede ser .csv, .xlsx o .xls
    formData.append('description', 'Norma Minsal 2024');
    
    const response = await fetch('/api/normaminsal/import/csv', {
