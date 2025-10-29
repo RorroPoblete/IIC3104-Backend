@@ -5,6 +5,7 @@ import fs from 'fs';
 import { prisma } from '../../../shared/db/prisma';
 import { logger } from '../../../shared/utils/logger';
 import { NormaMinsalCsvParser } from '../utils/csvParser';
+import { NormaMinsalExcelParser } from '../utils/excelParser';
 import { NormaMinsalDataNormalizer } from '../utils/dataNormalizer';
 import { asyncHandler } from '../../../shared/middleware/errorHandler';
 import { env } from '../../../config/env';
@@ -29,11 +30,11 @@ const upload = multer({
   limits: { fileSize: env.maxFileSize },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    const allowedExtensions = ['.csv'];
+    const allowedExtensions = ['.csv', '.xlsx', '.xls'];
     if (allowedExtensions.includes(ext)) {
       return cb(null, true);
     }
-    return cb(new Error('Solo se permiten archivos CSV'));
+    return cb(new Error('Solo se permiten archivos CSV o Excel (.xlsx, .xls)'));
   },
 });
 
@@ -76,7 +77,17 @@ router.post(
 
       fileId = file.id;
 
-      const parseResult = await NormaMinsalCsvParser.parseFile(filePath);
+      // Determine file type and parse accordingly
+      const ext = path.extname(filename).toLowerCase();
+      let parseResult;
+
+      if (ext === '.csv') {
+        parseResult = await NormaMinsalCsvParser.parseFile(filePath);
+      } else if (['.xlsx', '.xls'].includes(ext)) {
+        parseResult = await NormaMinsalExcelParser.parseFile(filePath);
+      } else {
+        throw new Error('Formato de archivo no soportado');
+      }
 
       if (parseResult.errors.length > 0) {
         logger.warn(`Errores durante el parseo: ${parseResult.errors.join(', ')}`);
