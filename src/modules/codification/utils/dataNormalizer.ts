@@ -54,6 +54,13 @@ export interface NormalizedData {
   estanciasNorma?: number | null;
   casosNorma?: number | null;
 
+  // Datos enriquecidos desde Norma MINSAL
+  pesoTotalNorma?: number | null;
+  pesoTotalDepuNorma?: number | null;
+  estMediaNorma?: number | null;
+  gravedadNorma?: string | null;
+  tieneNorma?: boolean;
+
   fechaIngresoCompleta?: Date | null;
   fechaCompleta?: Date | null;
 
@@ -118,8 +125,22 @@ export class DataNormalizer {
 
       leyCod: this.cleanString(csvRow['Ley ( Cod )']),
       leyDesc: this.cleanString(csvRow['Ley ( Desc )']),
-      conveniosCod: this.cleanString(csvRow['Convenios (cod)']),
-      conveniosDesc: this.cleanString(csvRow['Convenios (des)']),
+      conveniosCod: this.cleanString(
+        csvRow['Convenios (cod)'] ||
+        csvRow['Convenios Código'] ||
+        csvRow['Convenios cod'] ||
+        csvRow['Convenios Cod'] ||
+        csvRow['Convenios(cod)'] ||
+        csvRow['Convenios Código'] ||
+        csvRow['Convenios Codigo']
+      ),
+      conveniosDesc: this.cleanString(
+        csvRow['Convenios (des)'] ||
+        csvRow['Convenios Descripción'] ||
+        csvRow['Convenios Desc'] ||
+        csvRow['Convenios(des)'] ||
+        csvRow['Convenios Descripcion']
+      ),
 
       servicioSaludCod: this.cleanString(csvRow['Servicio Salud (cod)']),
       servicioSaludDesc: this.cleanString(csvRow['Servicio Salud (des)']),

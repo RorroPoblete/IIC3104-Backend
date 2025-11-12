@@ -8,6 +8,7 @@ import { codificationRouter } from './modules/codification/routes/import';
 import { systemRouter } from './modules/system/routes/system';
 import { normaMinsalRouter } from './modules/normaminsal/routes/normaminsal';
 import { pricingRouter } from './modules/pricing/routes/pricing';
+import { calculoRouter } from './modules/calculo/routes/calculo';
 
 const app = express();
 
@@ -31,6 +32,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use('/api/codification', codificationRouter);
 app.use('/api/normaminsal', normaMinsalRouter);
 app.use('/api/pricing', pricingRouter);
+app.use('/api/calculo', calculoRouter);
 app.use('/', systemRouter);
 
 app.use(errorHandler);

@@ -149,6 +149,13 @@ model NormalizedData {
   servicioCodTr10       String?
   servicioEgresoCod2    String?
 
+  // Datos enriquecidos desde Norma MINSAL
+  pesoTotalNorma        Float?
+  pesoTotalDepuNorma    Float?
+  estMediaNorma         Float?
+  gravedadNorma         String?
+  tieneNorma            Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -182,6 +189,7 @@ model NormaMinsalFile {
 
   // Relaciones
   data NormaMinsalData[]
+  calculos CalculoEpisodio[]
 
   @@map("norma_minsal_files")
 }
@@ -240,6 +248,7 @@ model PricingFile {
   completedAt   DateTime?
 
   tarifas PricingTarifa[]
+  calculos CalculoEpisodio[]
 
   @@map("pricing_files")
 }
@@ -266,4 +275,50 @@ model PricingTarifa {
   @@index([convenioId])
   @@index([fileId])
   @@map("pricing_tarifas")
+}
+
+// Modelo para versionado de cálculos de episodios
+model CalculoEpisodio {
+  id                String   @id @default(cuid())
+  episodioId        String   // ID del episodio normalizado
+  version           Int      // Número de versión del cálculo (incremental)
+  convenio          String?  // Código del convenio
+  grd               String?  // Código GRD del episodio
+  precioBase        Decimal? @db.Decimal(20, 4)
+  ir                Decimal? @db.Decimal(20, 4) // Peso relativo/IR usado
+  subtotal          Decimal? @db.Decimal(20, 4)
+  totalFinal        Decimal  @db.Decimal(20, 4)
+  breakdown         Json     // Breakdown completo del cálculo
+  fechaReferencia   DateTime? // Fecha de referencia para el cálculo
+  normaFileId       String?  // ID del archivo activo de norma usado
+  pricingFileId     String?  // ID del archivo activo de pricing usado
+  usuario           String?  // Usuario que ejecutó el cálculo
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relaciones
+  normaFile         NormaMinsalFile? @relation(fields: [normaFileId], references: [id])
+  pricingFile       PricingFile? @relation(fields: [pricingFileId], references: [id])
+
+  @@index([episodioId])
+  @@index([episodioId, version])
+  @@map("calculo_episodios")
+}
+
+// Modelo para auditoría de eventos de cálculo
+model CalculoAuditoria {
+  id            String   @id @default(cuid())
+  evento        String   // Tipo de evento (ej: "Recalcular episodio (V1)")
+  episodioId    String?  // ID del episodio relacionado
+  calculoId     String?  // ID del cálculo relacionado
+  usuario       String?  // Usuario que ejecutó la acción
+  totalFinal    Decimal? @db.Decimal(20, 4)
+  fuentes       Json?    // Información de fuentes usadas
+  metadata      Json?    // Información adicional
+  createdAt     DateTime @default(now())
+
+  @@index([episodioId])
+  @@index([calculoId])
+  @@index([createdAt])
+  @@map("calculo_auditoria")
 }

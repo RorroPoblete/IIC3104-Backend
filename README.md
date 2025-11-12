@@ -58,6 +58,11 @@ docker compose down -v --rmi local --remove-orphans           # (Opcional) Limpi
 - `GET /api/pricing/prices/:convenioId` expone las tarifas del convenio (query opcional `tramo`, `fileId`). Estas tarifas alimentan el módulo `packages/rules/pricing`.
 - `GET /api/pricing/calculate` calcula el precio base para un convenio y peso relativo dados (query params: `convenioId`, `pesoRelativo`, opcional `fechaReferencia`). Soporta convenios con precio único y por tramos (T1: 0–1.5, T2: 1.5<x≤2.5, T3: >2.5).
 
+### Cálculo Integral de Episodios (V1)
+- `POST /api/calculo/episodio/:id/run` ejecuta el cálculo integral de un episodio (V1). Body: `{ fechaReferencia?: string (ISO), usuario?: string }`. Calcula Precio Base × IR = Subtotal (Total Final en V1).
+- `GET /api/calculo/episodio/:id/versiones` obtiene el historial de versiones de cálculo para un episodio.
+- `GET /api/calculo/version/:id` obtiene el detalle completo de un cálculo específico (breakdown V1).
+
 ## Desarrollo local sin Docker
 
 1. Instala dependencias: `npm install`
@@ -91,5 +96,6 @@ npx prisma db push
 - `src/modules/codification`: rutas y utilidades de importación CSV.
 - `src/modules/normaminsal`: gestión de archivos de Norma Minsal.
 - `src/modules/pricing`: importación y exposición de tarifas GRD, además de la integración con `packages/rules/pricing`.
+- `src/modules/calculo`: cálculo integral de episodios GRD (V1) con versionado y auditoría.
 - `src/modules/system`: health check y configuración pública.
 - `src/shared`: clientes, logger y middlewares comunes.
