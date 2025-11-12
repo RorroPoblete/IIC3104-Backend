@@ -190,7 +190,7 @@ model NormaMinsalFile {
 model NormaMinsalData {
   id          String @id @default(cuid())
   fileId      String
-  
+ 
   // Campos principales de la norma MINSAL basados en el CSV real
   grd                     String  // Código GRD - campo principal para matching
   tipoGrd                 String?
@@ -224,4 +224,46 @@ model NormaMinsalData {
   @@index([grd])
   @@index([fileId])
   @@map("norma_minsal_data")
+}
+
+model PricingFile {
+  id            String        @id @default(cuid())
+  filename      String
+  description   String?
+  status        ImportStatus  @default(PENDING)
+  totalRows     Int?
+  processedRows Int            @default(0)
+  errorRows     Int            @default(0)
+  isActive      Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  completedAt   DateTime?
+
+  tarifas PricingTarifa[]
+
+  @@map("pricing_files")
+}
+
+model PricingTarifa {
+  id                   String   @id @default(cuid())
+  fileId               String
+  aseguradoraCodigo    String?
+  aseguradoraNombre    String?
+  convenioId           String
+  descripcionConvenio  String?
+  tipoAseguradora      String?
+  tipoConvenio         String?
+  tramo                String?
+  precio               Decimal  @db.Decimal(20, 4)
+  fechaAdmision        DateTime?
+  fechaFin             DateTime?
+  rawData              Json
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  file PricingFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([convenioId])
+  @@index([fileId])
+  @@map("pricing_tarifas")
 }
