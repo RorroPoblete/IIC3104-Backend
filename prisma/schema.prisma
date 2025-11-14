@@ -322,3 +322,47 @@ model CalculoAuditoria {
   @@index([createdAt])
   @@map("calculo_auditoria")
 }
+
+// Tabla para almacenar archivos de Ajustes por Tecnología
+model AjustesTecnologiaFile {
+  id          String   @id @default(cuid())
+  filename    String
+  description String?
+  status      ImportStatus @default(PENDING)
+  totalRows   Int?
+  processedRows Int @default(0)
+  errorRows   Int @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  completedAt DateTime?
+  isActive    Boolean @default(false) // Solo un archivo puede estar activo a la vez
+
+  // Relaciones
+  data AjustesTecnologiaData[]
+
+  @@map("ajustes_tecnologia_files")
+}
+
+// Tabla para almacenar datos de Ajustes por Tecnología
+model AjustesTecnologiaData {
+  id          String @id @default(cuid())
+  fileId      String
+  
+  // Campos principales
+  codigo      String  // Código(s) de procedimiento (puede ser múltiple separado por ;)
+  descripcion String? // Descripción de la tecnología
+  monto       Decimal @db.Decimal(20, 4) // Monto del ajuste
+  
+  // Campos adicionales
+  rawData     Json   // Almacena toda la fila como JSON para flexibilidad
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  file AjustesTecnologiaFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([codigo])
+  @@index([fileId])
+  @@map("ajustes_tecnologia_data")
+}
