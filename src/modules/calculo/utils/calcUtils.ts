@@ -21,3 +21,4 @@ export function calcSubtotal(precioBase: number, ir: number): number {
   return Math.round(subtotal * 100) / 100;
 }
 
+

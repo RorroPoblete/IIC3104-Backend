@@ -94,6 +94,10 @@ export class AjustesCalculoService {
           AjustesCalculoService.MONTOS_DIAS_ESPERA_CH0041[
             AjustesCalculoService.MONTOS_DIAS_ESPERA_CH0041.length - 1
           ];
+        if (!ultimoMonto) {
+          logger.error('No hay montos disponibles para días de espera CH0041');
+          return 0;
+        }
         return diasEspera * ultimoMonto.monto;
       }
 

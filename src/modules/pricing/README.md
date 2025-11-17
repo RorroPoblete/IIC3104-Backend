@@ -251,3 +251,4 @@ try {
 - Los índices en `convenioId` y `fileId` optimizan las consultas
 - El cálculo de precio base valida vigencias y selecciona automáticamente el tramo correcto
 
+
