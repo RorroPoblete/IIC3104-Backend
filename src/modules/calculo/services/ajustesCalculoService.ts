@@ -130,12 +130,14 @@ export class AjustesCalculoService {
    * @param convenioId - Código del convenio
    * @param ir - Peso relativo/IR del episodio
    * @param puntoCorteSuperior - Punto de corte superior de la norma
+   * @param precioBase - Precio base del episodio (necesario para calcular el monto)
    * @returns Monto calculado por outlier superior
    */
   static calcularOutlierSuperior(
     convenioId: string,
     ir: number,
     puntoCorteSuperior: number | null | undefined,
+    precioBase?: number,
   ): number {
     const convenio = convenioId.trim().toUpperCase();
 
@@ -156,16 +158,31 @@ export class AjustesCalculoService {
       return 0;
     }
 
-    // TODO: Necesitamos determinar el monto del pago por outlier superior
-    // Por ahora retornamos 0 hasta tener más información del documento
-    logger.warn('Cálculo de outlier superior para FNS012 no implementado completamente', {
+    // Calcular el monto: (IR - puntoCorteSuperior) * precioBase
+    // Esto representa el pago por cada unidad de IR que excede el punto de corte
+    if (!precioBase || precioBase <= 0) {
+      logger.warn('No se puede calcular outlier superior sin precio base', {
+        convenioId,
+        ir,
+        puntoCorteSuperior,
+        precioBase,
+      });
+      return 0;
+    }
+
+    const diferenciaIR = ir - puntoCorteSuperior;
+    const montoOutlier = diferenciaIR * precioBase;
+
+    logger.info('Outlier superior calculado para FNS012', {
       convenioId,
       ir,
       puntoCorteSuperior,
-      esOutlierSuperior,
+      diferenciaIR,
+      precioBase,
+      montoOutlier,
     });
 
-    return 0;
+    return montoOutlier;
   }
 
   /**
@@ -179,6 +196,7 @@ export class AjustesCalculoService {
     proced01Principal?: string | null;
     conjuntoProcedimientosSecundarios?: string | null;
     fechaReferencia?: Date | string | null;
+    precioBase?: number;
   }): Promise<AjustesCalculoResult> {
     const {
       convenioId,
@@ -188,6 +206,7 @@ export class AjustesCalculoService {
       proced01Principal,
       conjuntoProcedimientosSecundarios,
       fechaReferencia,
+      precioBase,
     } = params;
 
     // Calcular ajustes por tecnología
@@ -199,8 +218,13 @@ export class AjustesCalculoService {
     // Calcular días de espera
     const diasEsperaCalculo = this.calcularDiasEspera(convenioId, diasEspera, fechaReferencia);
 
-    // Calcular outlier superior
-    const outlierSuperior = this.calcularOutlierSuperior(convenioId, ir, puntoCorteSuperior);
+    // Calcular outlier superior (requiere precioBase)
+    const outlierSuperior = this.calcularOutlierSuperior(
+      convenioId,
+      ir,
+      puntoCorteSuperior,
+      precioBase,
+    );
 
     const totalAjustes = ajustesTecnologia + diasEsperaCalculo + outlierSuperior;
 

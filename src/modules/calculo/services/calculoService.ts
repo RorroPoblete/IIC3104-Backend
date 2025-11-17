@@ -177,6 +177,7 @@ export class CalculoService {
       proced01Principal: episodio.proced01Principal,
       conjuntoProcedimientosSecundarios: episodio.conjuntoProcedimientosSecundarios,
       fechaReferencia: fechaReferencia || episodio.fechaIngresoCompleta,
+      precioBase, // Necesario para calcular outlier superior
     });
 
     // 9. Calcular total final: subtotal + ajustes
