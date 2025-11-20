@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, CalculoEpisodio } from '@prisma/client';
 import { prisma } from '../../../shared/db/prisma';
 import { logger } from '../../../shared/utils/logger';
 import { PricingService } from '../../pricing/services/pricingService';

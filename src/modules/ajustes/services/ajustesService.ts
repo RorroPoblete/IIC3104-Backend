@@ -54,7 +54,7 @@ export class AjustesService {
 
       logger.info('Resultados de búsqueda de ajustes', {
         totalAjustesEncontrados: ajustes.length,
-        ajustesDetalle: ajustes.slice(0, 5).map((a) => ({
+        ajustesDetalle: ajustes.slice(0, 5).map((a: { codigo: string; monto: unknown; descripcion: string | null }) => ({
           codigo: a.codigo,
           monto: Number(a.monto),
           descripcion: a.descripcion,
@@ -62,7 +62,7 @@ export class AjustesService {
       });
 
       // Calcular suma total
-      const total = ajustes.reduce((sum, ajuste) => {
+      const total = ajustes.reduce((sum: number, ajuste: { monto: unknown }) => {
         return sum + Number(ajuste.monto);
       }, 0);
 

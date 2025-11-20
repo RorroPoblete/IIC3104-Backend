@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { Prisma } from '@prisma/client';
+import { Prisma, PricingTarifa } from '@prisma/client';
 import {
   configurePricing,
   ConvenioTipo,
@@ -243,7 +243,7 @@ pricingRouter.get(
       }),
     ]);
 
-    const payload = data.map((row) => ({
+    const payload = data.map((row: PricingTarifa) => ({
       id: row.id,
       convenioId: row.convenioId,
       descripcion: row.descripcionConvenio,
@@ -340,7 +340,11 @@ pricingRouter.get(
       targetFileId = activeFile.id;
     }
 
-    const where: Prisma.PricingTarifaWhereInput = {
+    const where: {
+      convenioId: string;
+      fileId: string;
+      tramo?: string;
+    } = {
       convenioId,
       fileId: targetFileId,
     };
@@ -361,7 +365,7 @@ pricingRouter.get(
       });
     }
 
-    const payload = data.map((row) => ({
+    const payload = data.map((row: PricingTarifa) => ({
       id: row.id,
       convenioId: row.convenioId,
       descripcion: row.descripcionConvenio,
@@ -379,7 +383,7 @@ pricingRouter.get(
       success: true,
       data: {
         fileId: targetFileId,
-        tipo: data.some((row) => row.tramo)
+        tipo: data.some((row: PricingTarifa) => row.tramo)
           ? ConvenioTipo.POR_TRAMOS
           : ConvenioTipo.PRECIO_UNICO,
         precios: payload,
