@@ -19,10 +19,8 @@ services:
       - key: NODE_ENV
         value: production
 
-      # Las tres siguientes las llenarás en el panel (Render no las versiona)
+      # Las dos siguientes las llenarás en el panel (Render no las versiona)
       - key: DATABASE_URL
-        sync: false
-      - key: REDIS_URL
         sync: false
       - key: JWT_SECRET
         sync: false

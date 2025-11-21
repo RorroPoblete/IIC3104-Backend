@@ -11,6 +11,7 @@ COPY tsconfig.json ./
 RUN npm ci
 
 COPY src ./src
+COPY packages ./packages
 COPY docker/entrypoint.sh ./docker/entrypoint.sh
 
 # Generar Prisma Client antes de compilar TypeScript para evitar errores en build
