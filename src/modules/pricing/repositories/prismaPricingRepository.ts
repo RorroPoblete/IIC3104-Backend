@@ -1,4 +1,4 @@
-import { ImportStatus } from '@prisma/client';
+import { ImportStatus, PricingTarifa } from '@prisma/client';
 import {
   ConvenioTipo,
   RangoVigencia,
@@ -29,11 +29,11 @@ export class PrismaPricingTarifaRepository implements TarifaRepository {
       return undefined;
     }
 
-    const tipo = tarifas.some((tarifa) => Boolean(tarifa.tramo))
+    const tipo = tarifas.some((tarifa: PricingTarifa) => Boolean(tarifa.tramo))
       ? ConvenioTipo.POR_TRAMOS
       : ConvenioTipo.PRECIO_UNICO;
 
-    const precios = tarifas.map((tarifa) => {
+    const precios = tarifas.map((tarifa: PricingTarifa) => {
       const vigencia: RangoVigencia = {};
       if (tarifa.fechaAdmision) {
         vigencia.desde = tarifa.fechaAdmision;
@@ -59,7 +59,7 @@ export class PrismaPricingTarifaRepository implements TarifaRepository {
     });
 
     const descripcion = tarifas.find(
-      (tarifa) => tarifa.descripcionConvenio?.length,
+      (tarifa: PricingTarifa) => tarifa.descripcionConvenio?.length,
     )?.descripcionConvenio;
 
     const convenio: {

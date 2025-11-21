@@ -2,6 +2,15 @@
 
 Aplicación monolítica en Node.js + TypeScript que unifica los módulos de salud y codificación. Incluye PostgreSQL vía Docker y expone los endpoints del módulo de importación GRD y configuración pública para el frontend.
 
+## Contenido
+
+- [IIC3104 Backend](#iic3104-backend<delete>
+- [Prerrequisitos](#prerrequisitos)
+- [Puesta en marcha con Docker](#puesta-en-marcha-con-docker)
+- [Endpoints útiles](#endpoints-utiles)
+- [Desarrollo local sin Docker](#desarrollo-local-sin-docker)
+- [Migraciones Prisma](#migraciones-prisma)
+- [Estructura principal](#estructura-principal)
 ## Prerrequisitos
 
 - Docker y Docker Compose

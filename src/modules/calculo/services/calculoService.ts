@@ -1,8 +1,9 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, CalculoEpisodio } from '@prisma/client';
 import { prisma } from '../../../shared/db/prisma';
 import { logger } from '../../../shared/utils/logger';
 import { PricingService } from '../../pricing/services/pricingService';
 import { calcSubtotal } from '../utils/calcUtils';
+import { AjustesCalculoService } from './ajustesCalculoService';
 import {
   ConvenioNoDisponibleError,
   PesoRelativoInvalidoError,
@@ -17,6 +18,12 @@ export interface CalculoBreakdown {
   precioBase: number;
   ir: number;
   subtotal: number;
+  ajustes: {
+    ajustesTecnologia: number;
+    diasEspera: number;
+    outlierSuperior: number;
+    totalAjustes: number;
+  };
   totalFinal: number;
   fuentes: {
     norma: string | null;
@@ -40,7 +47,7 @@ export interface CalculoEpisodioResult {
 export class CalculoService {
   /**
    * Calcula el precio integral de un episodio (V1)
-   * Solo incluye: Precio Base × IR = Subtotal
+   * Incluye: Precio Base × IR = Subtotal + Ajustes (Tecnología, Días de Espera, Outlier Superior)
    */
   static async calcularEpisodio(
     params: CalculoEpisodioParams,
@@ -161,10 +168,22 @@ export class CalculoService {
     // 7. Calcular subtotal
     const subtotal = calcSubtotal(precioBase, ir);
 
-    // 8. En V1, totalFinal = subtotal (sin AT, días de espera, outlier, carencia)
-    const totalFinal = subtotal;
+    // 8. Calcular ajustes adicionales
+    const ajustes = await AjustesCalculoService.calcularTodosAjustes({
+      convenioId: convenioIdTrimmed,
+      ir,
+      puntoCorteSuperior: episodio.irPuntoCorteSuperior,
+      diasEspera: episodio.estanciaEpisodio, // TODO: Verificar si este es el campo correcto para días de espera
+      proced01Principal: episodio.proced01Principal,
+      conjuntoProcedimientosSecundarios: episodio.conjuntoProcedimientosSecundarios,
+      fechaReferencia: fechaReferencia || episodio.fechaIngresoCompleta,
+      precioBase, // Necesario para calcular outlier superior
+    });
 
-    // 9. Construir breakdown
+    // 9. Calcular total final: subtotal + ajustes
+    const totalFinal = subtotal + ajustes.totalAjustes;
+
+    // 10. Construir breakdown
     const breakdown: CalculoBreakdown = {
       episodioId,
       convenio: convenioIdTrimmed,
@@ -172,6 +191,12 @@ export class CalculoService {
       precioBase,
       ir,
       subtotal,
+      ajustes: {
+        ajustesTecnologia: ajustes.ajustesTecnologia,
+        diasEspera: ajustes.diasEspera,
+        outlierSuperior: ajustes.outlierSuperior,
+        totalAjustes: ajustes.totalAjustes,
+      },
       totalFinal,
       fuentes: {
         norma: normaFile ? normaFile.filename : null,
@@ -185,11 +210,12 @@ export class CalculoService {
       precioBase,
       ir,
       subtotal,
+      ajustes: ajustes.totalAjustes,
       totalFinal,
       tramo: tramoId,
     });
 
-    // 10. Obtener próxima versión
+    // 11. Obtener próxima versión
     const lastVersion = await prisma.calculoEpisodio.findFirst({
       where: { episodioId },
       orderBy: { version: 'desc' },
@@ -198,7 +224,7 @@ export class CalculoService {
 
     const nextVersion = (lastVersion?.version ?? 0) + 1;
 
-    // 11. Persistir cálculo
+    // 12. Persistir cálculo
     const calculo = await prisma.calculoEpisodio.create({
       data: {
         episodioId,
@@ -219,7 +245,7 @@ export class CalculoService {
       },
     });
 
-    // 12. Registrar auditoría
+    // 13. Registrar auditoría
     await prisma.calculoAuditoria.create({
       data: {
         evento: 'Recalcular episodio (V1)',
