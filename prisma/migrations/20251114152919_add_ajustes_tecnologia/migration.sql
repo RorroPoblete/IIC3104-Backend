@@ -39,3 +39,4 @@ CREATE INDEX "ajustes_tecnologia_data_fileId_idx" ON "ajustes_tecnologia_data"("
 ALTER TABLE "ajustes_tecnologia_data" ADD CONSTRAINT "ajustes_tecnologia_data_fileId_fkey" FOREIGN KEY ("fileId") REFERENCES "ajustes_tecnologia_files"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 
+
