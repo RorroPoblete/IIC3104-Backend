@@ -354,7 +354,7 @@ router.patch(
     const actor = getRequestActor(req);
 
     const changeIds = changes
-      .map((item) => (typeof item?.id === 'string' ? item.id : null))
+      .map((item: { id?: unknown }) => (typeof item?.id === 'string' ? item.id : null))
       .filter(Boolean) as string[];
 
     const existingRows = await prisma.normalizedData.findMany({
