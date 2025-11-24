@@ -9,6 +9,7 @@ import { NormaMinsalExcelParser } from '../utils/excelParser';
 import { NormaMinsalDataNormalizer } from '../utils/dataNormalizer';
 import { asyncHandler } from '../../../shared/middleware/errorHandler';
 import { env } from '../../../config/env';
+import { getRequestActor, logAuditEvent } from '../../../shared/utils/auditLogger';
 
 const router = express.Router();
 
@@ -54,6 +55,7 @@ router.post(
   '/import/csv',
   upload.single('file'),
   asyncHandler(async (req: Request, res: Response) => {
+    const actor = getRequestActor(req);
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No se proporcionó ningún archivo' });
     }
@@ -160,6 +162,23 @@ router.post(
         },
       });
 
+      await logAuditEvent(
+        {
+          action: 'NORMA_IMPORT_COMPLETED',
+          entityType: 'normaMinsalFile',
+          entityId: file.id,
+          description: `Importación de Norma Minsal ${filename} finalizada con estado ${status}`,
+          metadata: {
+            filename,
+            totalRows: parseResult.totalRows,
+            processedRows,
+            errorRows,
+            status,
+          },
+        },
+        actor,
+      );
+
       return res.json({
         success: true,
         message: 'Importación de Norma Minsal completada',
@@ -180,6 +199,20 @@ router.post(
           where: { id: fileId },
           data: { status: 'FAILED' },
         });
+
+        await logAuditEvent(
+          {
+            action: 'NORMA_IMPORT_FAILED',
+            entityType: 'normaMinsalFile',
+            entityId: fileId,
+            description: `Importación de Norma Minsal ${filename} falló`,
+            metadata: {
+              filename,
+              error: error instanceof Error ? error.message : 'unknown',
+            },
+          },
+          actor,
+        );
       }
 
       throw error;
@@ -259,6 +292,7 @@ router.patch(
   '/import/batches/:id/activate',
   asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
+    const actor = getRequestActor(req);
 
     if (!id) {
       return res.status(400).json({ success: false, message: 'Debe especificarse un ID de lote' });
@@ -282,6 +316,16 @@ router.patch(
     });
 
     logger.info(`Lote de Norma Minsal ${id} activado`);
+
+    await logAuditEvent(
+      {
+        action: 'NORMA_BATCH_ACTIVATED',
+        entityType: 'normaMinsalFile',
+        entityId: id,
+        description: 'Lote de Norma Minsal activado',
+      },
+      actor,
+    );
 
     return res.json({
       success: true,
@@ -474,6 +518,7 @@ router.delete(
   '/import/batches/:id',
   asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
+    const actor = getRequestActor(req);
 
     if (!id) {
       return res.status(400).json({ success: false, message: 'Debe especificarse un ID de lote' });
@@ -493,6 +538,16 @@ router.delete(
 
     logger.info(`Lote de Norma Minsal ${id} eliminado`);
 
+    await logAuditEvent(
+      {
+        action: 'NORMA_BATCH_DELETED',
+        entityType: 'normaMinsalFile',
+        entityId: id,
+        description: 'Lote de Norma Minsal eliminado',
+      },
+      actor,
+    );
+
     return res.json({
       success: true,
       message: 'Lote eliminado correctamente',
@@ -501,4 +556,3 @@ router.delete(
 );
 
 export const normaMinsalRouter = router;
-
