@@ -1,6 +1,5 @@
 import { Router, Request, Response } from 'express';
 import { pgPool } from '../../../shared/clients/postgres';
-import { redisClient } from '../../../shared/clients/redis';
 import { env } from '../../../config/env';
 
 const router = Router();
@@ -10,15 +9,9 @@ router.get('/health', async (_req: Request, res: Response) => {
     const { rows } = await pgPool.query<{ now: Date }>('SELECT NOW() as now');
     const now = rows[0]?.now ?? null;
 
-    // let redisPing: string | null = null;
-    // if (redisClient?.isOpen) {
-    //   redisPing = await redisClient.ping();
-    // }
-
     res.json({
       message: 'Hello World',
       postgresNow: now,
-      // redisPing,
     });
   } catch (error: unknown) {
     res.status(500).json({
