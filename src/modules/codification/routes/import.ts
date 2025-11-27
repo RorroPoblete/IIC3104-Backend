@@ -9,6 +9,7 @@ import { DataNormalizer } from '../utils/dataNormalizer';
 import { NormaMinsalEnricher } from '../services/normaMinsalEnricher';
 import { asyncHandler } from '../../../shared/middleware/errorHandler';
 import { env } from '../../../config/env';
+import { getRequestActor, logAuditEvent } from '../../../shared/utils/auditLogger';
 
 const router = express.Router();
 
@@ -54,6 +55,7 @@ router.post(
   '/csv',
   upload.single('file'),
   asyncHandler(async (req: Request, res: Response) => {
+    const actor = getRequestActor(req);
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No se proporcionó ningún archivo' });
     }
@@ -167,6 +169,23 @@ router.post(
         },
       });
 
+      await logAuditEvent(
+        {
+          action: 'CODIFICATION_IMPORT_COMPLETED',
+          entityType: 'importBatch',
+          entityId: batch.id,
+          description: `Importación de codificación ${filename} finalizada con estado ${status}`,
+          metadata: {
+            filename,
+            totalRows: parseResult.totalRows,
+            processedRows,
+            errorRows,
+            status,
+          },
+        },
+        actor,
+      );
+
       return res.json({
         success: true,
         message: 'Importación completada',
@@ -187,6 +206,20 @@ router.post(
           where: { id: batchId },
           data: { status: 'FAILED' },
         });
+
+        await logAuditEvent(
+          {
+            action: 'CODIFICATION_IMPORT_FAILED',
+            entityType: 'importBatch',
+            entityId: batchId,
+            description: `Importación de codificación ${filename} falló`,
+            metadata: {
+              filename,
+              error: error instanceof Error ? error.message : 'unknown',
+            },
+          },
+          actor,
+        );
       }
 
       throw error;
@@ -335,6 +368,86 @@ router.get(
           total,
           pages: Math.ceil(total / limit),
         },
+      },
+    });
+  }),
+);
+
+router.patch(
+  '/batches/:id/normalized',
+  asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
+    const { id } = req.params;
+    const changes = Array.isArray(req.body?.changes) ? req.body.changes : [];
+
+    if (!id) {
+      return res.status(400).json({ success: false, message: 'Debe especificarse un ID de lote' });
+    }
+
+    if (changes.length === 0) {
+      return res.status(400).json({ success: false, message: 'No se enviaron cambios' });
+    }
+
+    const actor = getRequestActor(req);
+
+    const changeIds = changes
+      .map((item: { id?: unknown }) => (typeof item?.id === 'string' ? item.id : null))
+      .filter(Boolean) as string[];
+
+    const existingRows = await prisma.normalizedData.findMany({
+      where: {
+        id: { in: changeIds },
+      },
+    });
+
+    const existingMap = existingRows.reduce<Record<string, typeof existingRows[number]>>((acc, row) => {
+      acc[row.id] = row;
+      return acc;
+    }, {});
+
+    const updatedRows = [] as typeof existingRows;
+
+    for (const change of changes) {
+      const rowId = typeof change?.id === 'string' ? change.id : null;
+      const updates = typeof change?.updates === 'object' && change?.updates !== null ? change.updates : null;
+
+      if (!rowId || !updates) {
+        continue;
+      }
+
+      const before = existingMap[rowId];
+      if (!before || before.batchId !== id) {
+        continue;
+      }
+
+      const after = await prisma.normalizedData.update({
+        where: { id: rowId },
+        data: updates as any,
+      });
+
+      updatedRows.push(after);
+
+      await logAuditEvent(
+        {
+          action: 'CODIFICATION_ROW_UPDATED',
+          entityType: 'normalizedData',
+          entityId: rowId,
+          description: `Fila actualizada en lote ${id}`,
+          before,
+          after,
+          metadata: {
+            batchId: id,
+            changedFields: Object.keys(updates),
+          },
+        },
+        actor,
+      );
+    }
+
+    return res.json({
+      success: true,
+      message: 'Cambios aplicados',
+      data: {
+        updated: updatedRows.length,
       },
     });
   }),
