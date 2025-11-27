@@ -42,6 +42,10 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
 
   const token = getBearerToken(req.headers.authorization);
   if (!token) {
+    logger.warn('Token de autenticación no proporcionado', { 
+      hasAuthHeader: !!req.headers.authorization,
+      path: req.path 
+    });
     return res.status(401).json({ message: 'Token de autenticación no proporcionado' });
   }
 
@@ -51,9 +55,73 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
       audience: audience!,
     });
 
-    const emailFromToken = typeof payload.email === 'string' ? payload.email.toLowerCase() : null;
+    // Log payload para debugging (sin información sensible)
+    logger.info('Token payload recibido', { 
+      hasEmail: !!payload.email,
+      hasSub: !!payload.sub,
+      payloadKeys: Object.keys(payload),
+      path: req.path 
+    });
+
+    // Intentar obtener email del token
+    let emailFromToken: string | null = null;
+    
+    // Primero intentar el campo 'email'
+    if (typeof payload.email === 'string') {
+      emailFromToken = payload.email.toLowerCase();
+    }
+    // Si no está, intentar 'https://auth0.com/user/email' (claim personalizado)
+    else if (typeof (payload as any)['https://auth0.com/user/email'] === 'string') {
+      emailFromToken = ((payload as any)['https://auth0.com/user/email'] as string).toLowerCase();
+    }
+    // Si aún no está, obtenerlo del endpoint /userinfo de Auth0
+    else if (typeof payload.sub === 'string' && issuer) {
+      try {
+        const userInfoUrl = new URL(`${issuer}userinfo`);
+        const userInfoResponse = await fetch(userInfoUrl.toString(), {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (userInfoResponse.ok) {
+          const userInfo = await userInfoResponse.json() as { email?: string };
+          if (typeof userInfo.email === 'string') {
+            emailFromToken = userInfo.email.toLowerCase();
+            logger.info('Email obtenido desde /userinfo', { 
+              sub: payload.sub,
+              path: req.path 
+            });
+          }
+        } else {
+          logger.warn('Error obteniendo userinfo de Auth0', { 
+            status: userInfoResponse.status,
+            sub: payload.sub,
+            path: req.path 
+          });
+        }
+      } catch (error) {
+        logger.warn('Error llamando a /userinfo de Auth0', { 
+          error: error instanceof Error ? error.message : 'Unknown',
+          sub: payload.sub,
+          path: req.path 
+        });
+      }
+    }
+    
     if (!emailFromToken) {
-      return res.status(401).json({ message: 'El token no incluye un correo electrónico válido' });
+      logger.warn('No se pudo obtener email del token ni de /userinfo', { 
+        hasEmail: !!payload.email,
+        emailType: typeof payload.email,
+        hasSub: !!payload.sub,
+        sub: payload.sub,
+        path: req.path,
+        availableClaims: Object.keys(payload).filter(k => !k.startsWith('_'))
+      });
+      
+      return res.status(401).json({ 
+        message: 'No se pudo obtener el correo electrónico del usuario. Por favor, inicia sesión nuevamente.' 
+      });
     }
 
     const user = await prisma.user.findUnique({
@@ -61,6 +129,10 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
     });
 
     if (!user) {
+      logger.warn('Usuario no encontrado en base de datos', { 
+        email: emailFromToken,
+        path: req.path 
+      });
       return res.status(403).json({ message: 'Usuario no autorizado para acceder' });
     }
 
@@ -75,7 +147,11 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
     return next();
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Token inválido';
-    logger.warn('Error validando token', { message });
+    logger.warn('Error validando token', { 
+      message,
+      errorName: error instanceof Error ? error.name : 'Unknown',
+      path: req.path 
+    });
     return res.status(401).json({ message: 'Token de autenticación inválido' });
   }
 };

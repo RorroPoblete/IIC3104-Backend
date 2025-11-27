@@ -7,6 +7,11 @@ const defaultUsers = [
     email: 'jnecochea1@uc.cl',
     role: 'Administrador',
   },
+  {
+    name: 'Felipe Guzmán',
+    email: 'fguzmancovarrubias@gmail.com',
+    role: 'Administrador',
+  },
 ];
 
 export const ensureDefaultUsers = async () => {
