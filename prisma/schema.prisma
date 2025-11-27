@@ -170,6 +170,13 @@ model NormalizedData {
   servicioCodTr10       String?
   servicioEgresoCod2    String?
 
+  // Datos enriquecidos desde Norma MINSAL
+  pesoTotalNorma        Float?
+  pesoTotalDepuNorma    Float?
+  estMediaNorma         Float?
+  gravedadNorma         String?
+  tieneNorma            Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -203,6 +210,7 @@ model NormaMinsalFile {
 
   // Relaciones
   data NormaMinsalData[]
+  calculos CalculoEpisodio[]
 
   @@map("norma_minsal_files")
 }
@@ -211,7 +219,7 @@ model NormaMinsalFile {
 model NormaMinsalData {
   id          String @id @default(cuid())
   fileId      String
-  
+ 
   // Campos principales de la norma MINSAL basados en el CSV real
   grd                     String  // Código GRD - campo principal para matching
   tipoGrd                 String?
@@ -245,4 +253,137 @@ model NormaMinsalData {
   @@index([grd])
   @@index([fileId])
   @@map("norma_minsal_data")
+}
+
+model PricingFile {
+  id            String        @id @default(cuid())
+  filename      String
+  description   String?
+  status        ImportStatus  @default(PENDING)
+  totalRows     Int?
+  processedRows Int            @default(0)
+  errorRows     Int            @default(0)
+  isActive      Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  completedAt   DateTime?
+
+  tarifas PricingTarifa[]
+  calculos CalculoEpisodio[]
+
+  @@map("pricing_files")
+}
+
+model PricingTarifa {
+  id                   String   @id @default(cuid())
+  fileId               String
+  aseguradoraCodigo    String?
+  aseguradoraNombre    String?
+  convenioId           String
+  descripcionConvenio  String?
+  tipoAseguradora      String?
+  tipoConvenio         String?
+  tramo                String?
+  precio               Decimal  @db.Decimal(20, 4)
+  fechaAdmision        DateTime?
+  fechaFin             DateTime?
+  rawData              Json
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  file PricingFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([convenioId])
+  @@index([fileId])
+  @@map("pricing_tarifas")
+}
+
+// Modelo para versionado de cálculos de episodios
+model CalculoEpisodio {
+  id                String   @id @default(cuid())
+  episodioId        String   // ID del episodio normalizado
+  version           Int      // Número de versión del cálculo (incremental)
+  convenio          String?  // Código del convenio
+  grd               String?  // Código GRD del episodio
+  precioBase        Decimal? @db.Decimal(20, 4)
+  ir                Decimal? @db.Decimal(20, 4) // Peso relativo/IR usado
+  subtotal          Decimal? @db.Decimal(20, 4)
+  totalFinal        Decimal  @db.Decimal(20, 4)
+  breakdown         Json     // Breakdown completo del cálculo
+  fechaReferencia   DateTime? // Fecha de referencia para el cálculo
+  normaFileId       String?  // ID del archivo activo de norma usado
+  pricingFileId     String?  // ID del archivo activo de pricing usado
+  usuario           String?  // Usuario que ejecutó el cálculo
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relaciones
+  normaFile         NormaMinsalFile? @relation(fields: [normaFileId], references: [id])
+  pricingFile       PricingFile? @relation(fields: [pricingFileId], references: [id])
+
+  @@index([episodioId])
+  @@index([episodioId, version])
+  @@map("calculo_episodios")
+}
+
+// Modelo para auditoría de eventos de cálculo
+model CalculoAuditoria {
+  id            String   @id @default(cuid())
+  evento        String   // Tipo de evento (ej: "Recalcular episodio (V1)")
+  episodioId    String?  // ID del episodio relacionado
+  calculoId     String?  // ID del cálculo relacionado
+  usuario       String?  // Usuario que ejecutó la acción
+  totalFinal    Decimal? @db.Decimal(20, 4)
+  fuentes       Json?    // Información de fuentes usadas
+  metadata      Json?    // Información adicional
+  createdAt     DateTime @default(now())
+
+  @@index([episodioId])
+  @@index([calculoId])
+  @@index([createdAt])
+  @@map("calculo_auditoria")
+}
+
+// Tabla para almacenar archivos de Ajustes por Tecnología
+model AjustesTecnologiaFile {
+  id          String   @id @default(cuid())
+  filename    String
+  description String?
+  status      ImportStatus @default(PENDING)
+  totalRows   Int?
+  processedRows Int @default(0)
+  errorRows   Int @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  completedAt DateTime?
+  isActive    Boolean @default(false) // Solo un archivo puede estar activo a la vez
+
+  // Relaciones
+  data AjustesTecnologiaData[]
+
+  @@map("ajustes_tecnologia_files")
+}
+
+// Tabla para almacenar datos de Ajustes por Tecnología
+model AjustesTecnologiaData {
+  id          String @id @default(cuid())
+  fileId      String
+  
+  // Campos principales
+  codigo      String  // Código(s) de procedimiento (puede ser múltiple separado por ;)
+  descripcion String? // Descripción de la tecnología
+  monto       Decimal @db.Decimal(20, 4) // Monto del ajuste
+  
+  // Campos adicionales
+  rawData     Json   // Almacena toda la fila como JSON para flexibilidad
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  file AjustesTecnologiaFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([codigo])
+  @@index([fileId])
+  @@map("ajustes_tecnologia_data")
 }

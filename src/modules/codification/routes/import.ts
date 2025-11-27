@@ -6,6 +6,7 @@ import { prisma } from '../../../shared/db/prisma';
 import { logger } from '../../../shared/utils/logger';
 import { CsvParser } from '../utils/csvParser';
 import { DataNormalizer } from '../utils/dataNormalizer';
+import { NormaMinsalEnricher } from '../services/normaMinsalEnricher';
 import { asyncHandler } from '../../../shared/middleware/errorHandler';
 import { env } from '../../../config/env';
 import { getRequestActor, logAuditEvent } from '../../../shared/utils/auditLogger';
@@ -101,11 +102,46 @@ router.post(
             })),
           });
 
-          await prisma.normalizedData.createMany({
-            data: rows.map((row) => ({
+          // Normalizar los datos
+          const normalizedRows = rows.map((row) => DataNormalizer.normalizeRow(row));
+
+          // Preparar datos para enriquecimiento batch
+          const enrichmentData = normalizedRows.map((normalized) => ({
+            grdCode: normalized.irGrdCodigo || normalized.irGrd || null,
+            gravedad: normalized.irGravedad || null,
+          }));
+
+          // Enriquecer con datos de Norma MINSAL en batch
+          const enrichmentMap = await NormaMinsalEnricher.enrichBatch(enrichmentData);
+
+          // Combinar datos normalizados con datos enriquecidos
+          const enrichedRows = normalizedRows.map((normalized) => {
+            const grdCode = normalized.irGrdCodigo || normalized.irGrd || null;
+            const enrichment = grdCode
+              ? enrichmentMap.get(grdCode.trim()) || {
+                  pesoTotalNorma: null,
+                  pesoTotalDepuNorma: null,
+                  estMediaNorma: null,
+                  gravedadNorma: null,
+                  tieneNorma: false,
+                }
+              : {
+                  pesoTotalNorma: null,
+                  pesoTotalDepuNorma: null,
+                  estMediaNorma: null,
+                  gravedadNorma: null,
+                  tieneNorma: false,
+                };
+
+            return {
               batchId: batch.id,
-              ...DataNormalizer.normalizeRow(row),
-            })),
+              ...normalized,
+              ...enrichment,
+            };
+          });
+
+          await prisma.normalizedData.createMany({
+            data: enrichedRows,
           });
 
           processedRows += rows.length;
