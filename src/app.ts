@@ -11,6 +11,7 @@ import { pricingRouter } from './modules/pricing/routes/pricing';
 import { calculoRouter } from './modules/calculo/routes/calculo';
 import { ajustesRouter } from './modules/ajustes/routes/ajustes';
 import { auditRouter } from './modules/system/routes/audit';
+import { reportesRouter } from './modules/reportes/routes/reportes';
 
 const app = express();
 
@@ -37,6 +38,7 @@ app.use('/api/pricing', pricingRouter);
 app.use('/api/calculo', calculoRouter);
 app.use('/api/ajustes', ajustesRouter);
 app.use('/api/audit', auditRouter);
+app.use('/api/reportes', reportesRouter);
 app.use('/', systemRouter);
 
 app.use(errorHandler);
