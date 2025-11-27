@@ -10,6 +10,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Usuarios autorizados para ingresar y operar en el sistema
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  role      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
 // Tabla para controlar lotes de importación
 model ImportBatch {
   id          String   @id @default(cuid())
