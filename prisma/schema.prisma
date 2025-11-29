@@ -168,6 +168,11 @@ model NormalizedData {
   gravedadNorma         String?
   tieneNorma            Boolean @default(false)
 
+  // Campos de validación y control (Finanzas)
+  validacion            String?  // Estado de validación
+  estadoRN              String?  // Estado RN (Recién Nacido)
+  diasDemora            Int?     // Días de demora/de espera
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

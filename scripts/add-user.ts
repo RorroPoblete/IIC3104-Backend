@@ -7,7 +7,7 @@ async function addUser() {
   
   if (args.length < 3) {
     console.error('Uso: ts-node scripts/add-user.ts <nombre> <email> <rol>');
-    console.error('Roles disponibles: Administrador, Analista, Codificador');
+    console.error('Roles disponibles: Administrador, Analista, Codificador, Finanzas');
     process.exit(1);
   }
 

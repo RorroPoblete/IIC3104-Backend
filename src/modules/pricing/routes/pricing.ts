@@ -19,6 +19,7 @@ import { logger } from '../../../shared/utils/logger';
 import { PricingParser, PricingRawRow } from '../utils/pricingParser';
 import { PrismaPricingTarifaRepository } from '../repositories/prismaPricingRepository';
 import { PricingService } from '../services/pricingService';
+import { requirePermission } from '../../../shared/middleware/rolePermissions';
 
 const pricingRouter = express.Router();
 
@@ -56,6 +57,7 @@ const upload = multer({
 
 pricingRouter.post(
   '/import',
+  requirePermission('pricing.modify'),
   upload.single('file'),
   asyncHandler(async (req: Request, res: Response) => {
     if (!req.file) {
@@ -269,6 +271,7 @@ pricingRouter.get(
 
 pricingRouter.patch(
   '/import/files/:id/activate',
+  requirePermission('pricing.modify'),
   asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
     const file = await prisma.pricingFile.findUnique({ where: { id } });
@@ -500,6 +503,72 @@ pricingRouter.get(
         error: 'INTERNAL_ERROR',
       });
     }
+  }),
+);
+
+pricingRouter.put(
+  '/import/files/:fileId/data/:id',
+  requirePermission('pricing.modify'),
+  asyncHandler(async (req: Request<{ fileId: string; id: string }>, res: Response) => {
+    const { id, fileId } = req.params;
+    const { precio, fechaAdmision, fechaFin, tramo } = req.body;
+
+    if (!id || !fileId) {
+      return res.status(400).json({ success: false, message: 'ID de archivo y tarifa son obligatorios' });
+    }
+
+    const existing = await prisma.pricingTarifa.findFirst({
+      where: { id, fileId },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Tarifa no encontrada' });
+    }
+
+    const updateData: {
+      precio?: Prisma.Decimal;
+      fechaAdmision?: Date | null;
+      fechaFin?: Date | null;
+      tramo?: string | null;
+    } = {};
+
+    if (precio !== undefined) {
+      const precioNumber = Number(precio);
+      if (!Number.isFinite(precioNumber) || precioNumber < 0) {
+        return res.status(400).json({ success: false, message: 'El precio debe ser un número válido mayor o igual a 0' });
+      }
+      updateData.precio = new Prisma.Decimal(precioNumber);
+    }
+
+    if (fechaAdmision !== undefined) {
+      updateData.fechaAdmision = fechaAdmision ? new Date(fechaAdmision) : null;
+    }
+
+    if (fechaFin !== undefined) {
+      updateData.fechaFin = fechaFin ? new Date(fechaFin) : null;
+    }
+
+    if (tramo !== undefined) {
+      updateData.tramo = tramo ? tramo.toUpperCase() : null;
+    }
+
+    const updated = await prisma.pricingTarifa.update({
+      where: { id },
+      data: updateData,
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        id: updated.id,
+        convenioId: updated.convenioId,
+        descripcion: updated.descripcionConvenio,
+        tramo: updated.tramo,
+        precio: Number(updated.precio),
+        fechaAdmision: updated.fechaAdmision,
+        fechaFin: updated.fechaFin,
+      },
+    });
   }),
 );
 
