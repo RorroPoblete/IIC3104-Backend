@@ -235,6 +235,7 @@ router.post(
 
 router.get(
   '/batches',
+  requirePermission('codification.view'),
   asyncHandler(async (req: Request, res: Response) => {
     const { page, limit, skip } = getPagination(req, 10);
 
@@ -339,6 +340,7 @@ router.get(
 
 router.get(
   '/batches/:id/normalized',
+  requirePermission('codification.view'),
   asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
 
@@ -377,6 +379,7 @@ router.get(
 
 router.put(
   '/batches/:batchId/normalized/:id',
+  requirePermission('codification.view'), // Requiere al menos ver para editar
   asyncHandler(async (req: Request<{ batchId: string; id: string }>, res: Response) => {
     const { id, batchId } = req.params;
     const updateData = req.body;
@@ -394,45 +397,20 @@ router.put(
       return res.status(404).json({ success: false, message: 'Registro no encontrado' });
     }
 
-    // Validar permisos según el rol del usuario
-    const userRole = req.authUser?.role;
-    const allowedFields: string[] = [];
+    // Validar permisos según el rol del usuario usando el sistema de permisos
+    const userRole = req.authUser?.role as 'Administrador' | 'Codificador' | 'Finanzas' | undefined;
+    const { getEditableFieldsForRole } = await import('../../../shared/middleware/rolePermissions');
+    const allowedFields = getEditableFieldsForRole(userRole || 'Analista');
 
-    if (userRole === 'Administrador') {
-      // Administrador puede editar todos los campos
-      allowedFields.push(...Object.keys(updateData));
-    } else if (userRole === 'Codificador') {
-      // Codificador puede editar campos de AT y documentación
-      allowedFields.push(
-        'proced01Principal',
-        'conjuntoProcedimientosSecundarios',
-        'diagnosticoPrincipal',
-        'conjuntoDx',
-        'especialidadMedica',
-        'medicoEgreso',
-        'especialidadEgreso',
-        'servicioIngresoDesc',
-        'servicioEgresoDesc',
-        'motivoEgreso',
-        'fechaIngresoCompleta',
-        'fechaCompleta',
-        'estanciaEpisodio',
-        'estanciaRealEpisodio',
-        'horasEstancia',
-        'facturacionTotal',
-        'emNorma',
-        'estanciasNorma',
-        'casosNorma',
-      );
-    } else if (userRole === 'Finanzas') {
-      // Finanzas puede editar campos de validación
-      allowedFields.push('validacion', 'estadoRN', 'diasDemora');
-    }
-
+    // Si es Administrador, permitir todos los campos
+    const isAdmin = userRole === 'Administrador';
+    
     // Filtrar solo los campos permitidos
     const filteredData: Record<string, unknown> = {};
-    for (const field of allowedFields) {
-      if (field in updateData) {
+    const updateKeys = Object.keys(updateData);
+    
+    for (const field of updateKeys) {
+      if (isAdmin || allowedFields.includes(field)) {
         filteredData[field] = updateData[field];
       }
     }
@@ -440,7 +418,7 @@ router.put(
     if (Object.keys(filteredData).length === 0) {
       return res.status(403).json({ 
         success: false, 
-        message: 'No tienes permisos para editar los campos proporcionados' 
+        message: 'No tienes permisos para editar los campos proporcionados según tu rol' 
       });
     }
 
@@ -451,10 +429,11 @@ router.put(
     });
 
     return res.json({ success: true, data: updated });
-      }),
+  }),
 );
 router.patch(
   '/batches/:id/normalized',
+  requirePermission('codification.view'), // Requiere al menos ver para editar
   asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
     const changes = Array.isArray(req.body?.changes) ? req.body.changes : [];
@@ -468,6 +447,12 @@ router.patch(
     }
 
     const actor = getRequestActor(req);
+
+    // Validar permisos según el rol del usuario
+    const userRole = req.authUser?.role as 'Administrador' | 'Codificador' | 'Finanzas' | undefined;
+    const { getEditableFieldsForRole } = await import('../../../shared/middleware/rolePermissions');
+    const allowedFields = getEditableFieldsForRole(userRole || 'Analista');
+    const isAdmin = userRole === 'Administrador';
 
     const changeIds = changes
       .map((item: { id?: unknown }) => (typeof item?.id === 'string' ? item.id : null))
@@ -499,9 +484,21 @@ router.patch(
         continue;
       }
 
+      // Filtrar solo los campos permitidos según el rol
+      const filteredUpdates: Record<string, unknown> = {};
+      for (const field of Object.keys(updates)) {
+        if (isAdmin || allowedFields.includes(field)) {
+          filteredUpdates[field] = updates[field];
+        }
+      }
+
+      if (Object.keys(filteredUpdates).length === 0) {
+        continue; // Saltar si no hay campos permitidos para actualizar
+      }
+
       const after = await prisma.normalizedData.update({
         where: { id: rowId },
-        data: updates as any,
+        data: filteredUpdates as any,
       });
 
       updatedRows.push(after);
@@ -516,7 +513,8 @@ router.patch(
           after,
           metadata: {
             batchId: id,
-            changedFields: Object.keys(updates),
+            changedFields: Object.keys(filteredUpdates),
+            userRole,
           },
         },
         actor,
@@ -530,6 +528,58 @@ router.patch(
         updated: updatedRows.length,
       },
     });
+  }),
+);
+
+// Ruta para descargar datos normalizados como CSV
+router.get(
+  '/batches/:id/normalized/export',
+  requirePermission('codification.download'),
+  asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ success: false, message: 'Debe especificarse un ID de lote' });
+    }
+
+    const batch = await prisma.importBatch.findUnique({
+      where: { id },
+      select: { filename: true },
+    });
+
+    if (!batch) {
+      return res.status(404).json({ success: false, message: 'Lote no encontrado' });
+    }
+
+    // Obtener todos los datos normalizados del lote
+    const normalizedData = await prisma.normalizedData.findMany({
+      where: { batchId: id },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (normalizedData.length === 0) {
+      return res.status(404).json({ success: false, message: 'No hay datos normalizados para exportar' });
+    }
+
+    // Convertir a CSV
+    const headers = Object.keys(normalizedData[0]);
+    const csvRows = normalizedData.map(row => {
+      return headers.map(header => {
+        const value = (row as any)[header];
+        if (value === null || value === undefined) return '';
+        if (typeof value === 'object') return JSON.stringify(value);
+        return String(value).replace(/"/g, '""');
+      }).map(v => `"${v}"`).join(',');
+    });
+
+    const csv = [
+      headers.map(h => `"${h}"`).join(','),
+      ...csvRows,
+    ].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="lote-${id}-${Date.now()}.csv"`);
+    res.send('\ufeff' + csv); // BOM para Excel
   }),
 );
 
