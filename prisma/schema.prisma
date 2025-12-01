@@ -18,8 +18,27 @@ model User {
   role      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
+}
   @@map("users")
+// Logs de auditoría para cambios de datos y operaciones administrativas
+model AuditLog {
+  id          String   @id @default(cuid())
+  action      String
+  entityType  String
+  entityId    String?
+  userId      String?
+  userEmail   String?
+  userName    String?
+  description String?
+  before      Json?
+  after       Json?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([userEmail])
+  @@index([createdAt])
 }
 
 // Tabla para controlar lotes de importación
