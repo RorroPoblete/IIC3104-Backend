@@ -9,6 +9,7 @@ import { DataNormalizer } from '../utils/dataNormalizer';
 import { NormaMinsalEnricher } from '../services/normaMinsalEnricher';
 import { asyncHandler } from '../../../shared/middleware/errorHandler';
 import { env } from '../../../config/env';
+import { requirePermission } from '../../../shared/middleware/rolePermissions';
 import { getRequestActor, logAuditEvent } from '../../../shared/utils/auditLogger';
 
 const router = express.Router();
@@ -53,6 +54,7 @@ const getPagination = (req: Request, defaultLimit: number) => {
 
 router.post(
   '/csv',
+  requirePermission('codification.upload'),
   upload.single('file'),
   asyncHandler(async (req: Request, res: Response) => {
     const actor = getRequestActor(req);
@@ -373,6 +375,84 @@ router.get(
   }),
 );
 
+router.put(
+  '/batches/:batchId/normalized/:id',
+  asyncHandler(async (req: Request<{ batchId: string; id: string }>, res: Response) => {
+    const { id, batchId } = req.params;
+    const updateData = req.body;
+
+    if (!id || !batchId) {
+      return res.status(400).json({ success: false, message: 'ID de lote y registro son obligatorios' });
+    }
+
+    // Verificar que el registro existe y pertenece al lote
+    const existing = await prisma.normalizedData.findFirst({
+      where: { id, batchId },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Registro no encontrado' });
+    }
+
+    // Validar permisos según el rol del usuario
+    const userRole = req.authUser?.role;
+    const allowedFields: string[] = [];
+
+    if (userRole === 'Administrador') {
+      // Administrador puede editar todos los campos
+      allowedFields.push(...Object.keys(updateData));
+    } else if (userRole === 'Codificador') {
+      // Codificador puede editar campos de AT y documentación
+      allowedFields.push(
+        'proced01Principal',
+        'conjuntoProcedimientosSecundarios',
+        'diagnosticoPrincipal',
+        'conjuntoDx',
+        'especialidadMedica',
+        'medicoEgreso',
+        'especialidadEgreso',
+        'servicioIngresoDesc',
+        'servicioEgresoDesc',
+        'motivoEgreso',
+        'fechaIngresoCompleta',
+        'fechaCompleta',
+        'estanciaEpisodio',
+        'estanciaRealEpisodio',
+        'horasEstancia',
+        'facturacionTotal',
+        'emNorma',
+        'estanciasNorma',
+        'casosNorma',
+      );
+    } else if (userRole === 'Finanzas') {
+      // Finanzas puede editar campos de validación
+      allowedFields.push('validacion', 'estadoRN', 'diasDemora');
+    }
+
+    // Filtrar solo los campos permitidos
+    const filteredData: Record<string, unknown> = {};
+    for (const field of allowedFields) {
+      if (field in updateData) {
+        filteredData[field] = updateData[field];
+      }
+    }
+
+    if (Object.keys(filteredData).length === 0) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'No tienes permisos para editar los campos proporcionados' 
+      });
+    }
+
+    // Actualizar el registro
+    const updated = await prisma.normalizedData.update({
+      where: { id },
+      data: filteredData,
+    });
+
+    return res.json({ success: true, data: updated });
+      }),
+);
 router.patch(
   '/batches/:id/normalized',
   asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
