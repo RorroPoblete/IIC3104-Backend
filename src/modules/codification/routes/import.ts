@@ -562,7 +562,11 @@ router.get(
     }
 
     // Convertir a CSV
-    const headers = Object.keys(normalizedData[0]);
+    const firstRow = normalizedData[0];
+    if (!firstRow) {
+      return res.status(404).json({ success: false, message: 'No hay datos normalizados para exportar' });
+    }
+    const headers = Object.keys(firstRow);
     const csvRows = normalizedData.map(row => {
       return headers.map(header => {
         const value = (row as any)[header];
@@ -579,7 +583,7 @@ router.get(
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="lote-${id}-${Date.now()}.csv"`);
-    res.send('\ufeff' + csv); // BOM para Excel
+    return res.send('\ufeff' + csv); // BOM para Excel
   }),
 );
 
