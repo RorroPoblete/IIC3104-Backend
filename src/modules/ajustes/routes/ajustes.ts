@@ -9,6 +9,7 @@ import { AjustesTecnologiaDataNormalizer } from '../utils/dataNormalizer';
 import { asyncHandler } from '../../../shared/middleware/errorHandler';
 import { env } from '../../../config/env';
 import { Prisma } from '@prisma/client';
+import { requirePermission } from '../../../shared/middleware/rolePermissions';
 
 const router = express.Router();
 
@@ -52,6 +53,7 @@ const getPagination = (req: Request, defaultLimit: number) => {
 
 router.post(
   '/import/excel',
+  requirePermission('ajustes.modify'),
   upload.single('file'),
   asyncHandler(async (req: Request, res: Response) => {
     if (!req.file) {
@@ -236,6 +238,7 @@ router.get(
 
 router.patch(
   '/import/files/:id/activate',
+  requirePermission('ajustes.modify'),
   asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
 
@@ -358,6 +361,64 @@ router.delete(
     return res.json({
       success: true,
       message: 'Archivo eliminado correctamente',
+    });
+  }),
+);
+
+router.put(
+  '/import/files/:fileId/data/:id',
+  requirePermission('ajustes.modify'),
+  asyncHandler(async (req: Request<{ fileId: string; id: string }>, res: Response) => {
+    const { id, fileId } = req.params;
+    const { codigo, descripcion, monto } = req.body;
+
+    if (!id || !fileId) {
+      return res.status(400).json({ success: false, message: 'ID de archivo y ajuste son obligatorios' });
+    }
+
+    const existing = await prisma.ajustesTecnologiaData.findFirst({
+      where: { id, fileId },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Ajuste no encontrado' });
+    }
+
+    const updateData: {
+      codigo?: string;
+      descripcion?: string | null;
+      monto?: Prisma.Decimal;
+    } = {};
+
+    if (codigo !== undefined) {
+      updateData.codigo = codigo;
+    }
+
+    if (descripcion !== undefined) {
+      updateData.descripcion = descripcion || null;
+    }
+
+    if (monto !== undefined) {
+      const montoNumber = Number(monto);
+      if (!Number.isFinite(montoNumber) || montoNumber < 0) {
+        return res.status(400).json({ success: false, message: 'El monto debe ser un número válido mayor o igual a 0' });
+      }
+      updateData.monto = new Prisma.Decimal(montoNumber);
+    }
+
+    const updated = await prisma.ajustesTecnologiaData.update({
+      where: { id },
+      data: updateData,
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        id: updated.id,
+        codigo: updated.codigo,
+        descripcion: updated.descripcion,
+        monto: Number(updated.monto),
+      },
     });
   }),
 );

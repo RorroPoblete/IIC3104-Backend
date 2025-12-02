@@ -10,6 +10,38 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Usuarios autorizados para ingresar y operar en el sistema
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  role      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+// Logs de auditoría para cambios de datos y operaciones administrativas
+model AuditLog {
+  id          String   @id @default(cuid())
+  action      String
+  entityType  String
+  entityId    String?
+  userId      String?
+  userEmail   String?
+  userName    String?
+  description String?
+  before      Json?
+  after       Json?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([userEmail])
+  @@index([createdAt])
+}
+
 // Tabla para controlar lotes de importación
 model ImportBatch {
   id          String   @id @default(cuid())
@@ -155,6 +187,11 @@ model NormalizedData {
   estMediaNorma         Float?
   gravedadNorma         String?
   tieneNorma            Boolean @default(false)
+
+  // Campos de validación y control (Finanzas)
+  validacion            String?  // Estado de validación
+  estadoRN              String?  // Estado RN (Recién Nacido)
+  diasDemora            Int?     // Días de demora/de espera
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

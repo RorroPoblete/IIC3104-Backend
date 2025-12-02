@@ -9,6 +9,8 @@ import { DataNormalizer } from '../utils/dataNormalizer';
 import { NormaMinsalEnricher } from '../services/normaMinsalEnricher';
 import { asyncHandler } from '../../../shared/middleware/errorHandler';
 import { env } from '../../../config/env';
+import { requirePermission } from '../../../shared/middleware/rolePermissions';
+import { getRequestActor, logAuditEvent } from '../../../shared/utils/auditLogger';
 
 const router = express.Router();
 
@@ -52,8 +54,10 @@ const getPagination = (req: Request, defaultLimit: number) => {
 
 router.post(
   '/csv',
+  requirePermission('codification.upload'),
   upload.single('file'),
   asyncHandler(async (req: Request, res: Response) => {
+    const actor = getRequestActor(req);
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No se proporcionó ningún archivo' });
     }
@@ -167,6 +171,23 @@ router.post(
         },
       });
 
+      await logAuditEvent(
+        {
+          action: 'CODIFICATION_IMPORT_COMPLETED',
+          entityType: 'importBatch',
+          entityId: batch.id,
+          description: `Importación de codificación ${filename} finalizada con estado ${status}`,
+          metadata: {
+            filename,
+            totalRows: parseResult.totalRows,
+            processedRows,
+            errorRows,
+            status,
+          },
+        },
+        actor,
+      );
+
       return res.json({
         success: true,
         message: 'Importación completada',
@@ -187,6 +208,20 @@ router.post(
           where: { id: batchId },
           data: { status: 'FAILED' },
         });
+
+        await logAuditEvent(
+          {
+            action: 'CODIFICATION_IMPORT_FAILED',
+            entityType: 'importBatch',
+            entityId: batchId,
+            description: `Importación de codificación ${filename} falló`,
+            metadata: {
+              filename,
+              error: error instanceof Error ? error.message : 'unknown',
+            },
+          },
+          actor,
+        );
       }
 
       throw error;
@@ -200,6 +235,7 @@ router.post(
 
 router.get(
   '/batches',
+  requirePermission('codification.view'),
   asyncHandler(async (req: Request, res: Response) => {
     const { page, limit, skip } = getPagination(req, 10);
 
@@ -304,6 +340,7 @@ router.get(
 
 router.get(
   '/batches/:id/normalized',
+  requirePermission('codification.view'),
   asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
 
@@ -337,6 +374,216 @@ router.get(
         },
       },
     });
+  }),
+);
+
+router.put(
+  '/batches/:batchId/normalized/:id',
+  requirePermission('codification.view'), // Requiere al menos ver para editar
+  asyncHandler(async (req: Request<{ batchId: string; id: string }>, res: Response) => {
+    const { id, batchId } = req.params;
+    const updateData = req.body;
+
+    if (!id || !batchId) {
+      return res.status(400).json({ success: false, message: 'ID de lote y registro son obligatorios' });
+    }
+
+    // Verificar que el registro existe y pertenece al lote
+    const existing = await prisma.normalizedData.findFirst({
+      where: { id, batchId },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Registro no encontrado' });
+    }
+
+    // Validar permisos según el rol del usuario usando el sistema de permisos
+    const userRole = req.authUser?.role as 'Administrador' | 'Codificador' | 'Finanzas' | undefined;
+    const { getEditableFieldsForRole } = await import('../../../shared/middleware/rolePermissions');
+    const allowedFields = getEditableFieldsForRole(userRole || 'Analista');
+
+    // Si es Administrador, permitir todos los campos
+    const isAdmin = userRole === 'Administrador';
+    
+    // Filtrar solo los campos permitidos
+    const filteredData: Record<string, unknown> = {};
+    const updateKeys = Object.keys(updateData);
+    
+    for (const field of updateKeys) {
+      if (isAdmin || allowedFields.includes(field)) {
+        filteredData[field] = updateData[field];
+      }
+    }
+
+    if (Object.keys(filteredData).length === 0) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'No tienes permisos para editar los campos proporcionados según tu rol' 
+      });
+    }
+
+    // Actualizar el registro
+    const updated = await prisma.normalizedData.update({
+      where: { id },
+      data: filteredData,
+    });
+
+    return res.json({ success: true, data: updated });
+  }),
+);
+router.patch(
+  '/batches/:id/normalized',
+  requirePermission('codification.view'), // Requiere al menos ver para editar
+  asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
+    const { id } = req.params;
+    const changes = Array.isArray(req.body?.changes) ? req.body.changes : [];
+
+    if (!id) {
+      return res.status(400).json({ success: false, message: 'Debe especificarse un ID de lote' });
+    }
+
+    if (changes.length === 0) {
+      return res.status(400).json({ success: false, message: 'No se enviaron cambios' });
+    }
+
+    const actor = getRequestActor(req);
+
+    // Validar permisos según el rol del usuario
+    const userRole = req.authUser?.role as 'Administrador' | 'Codificador' | 'Finanzas' | undefined;
+    const { getEditableFieldsForRole } = await import('../../../shared/middleware/rolePermissions');
+    const allowedFields = getEditableFieldsForRole(userRole || 'Analista');
+    const isAdmin = userRole === 'Administrador';
+
+    const changeIds = changes
+      .map((item: { id?: unknown }) => (typeof item?.id === 'string' ? item.id : null))
+      .filter(Boolean) as string[];
+
+    const existingRows = await prisma.normalizedData.findMany({
+      where: {
+        id: { in: changeIds },
+      },
+    });
+
+    const existingMap = existingRows.reduce<Record<string, typeof existingRows[number]>>((acc, row) => {
+      acc[row.id] = row;
+      return acc;
+    }, {});
+
+    const updatedRows = [] as typeof existingRows;
+
+    for (const change of changes) {
+      const rowId = typeof change?.id === 'string' ? change.id : null;
+      const updates = typeof change?.updates === 'object' && change?.updates !== null ? change.updates : null;
+
+      if (!rowId || !updates) {
+        continue;
+      }
+
+      const before = existingMap[rowId];
+      if (!before || before.batchId !== id) {
+        continue;
+      }
+
+      // Filtrar solo los campos permitidos según el rol
+      const filteredUpdates: Record<string, unknown> = {};
+      for (const field of Object.keys(updates)) {
+        if (isAdmin || allowedFields.includes(field)) {
+          filteredUpdates[field] = updates[field];
+        }
+      }
+
+      if (Object.keys(filteredUpdates).length === 0) {
+        continue; // Saltar si no hay campos permitidos para actualizar
+      }
+
+      const after = await prisma.normalizedData.update({
+        where: { id: rowId },
+        data: filteredUpdates as any,
+      });
+
+      updatedRows.push(after);
+
+      await logAuditEvent(
+        {
+          action: 'CODIFICATION_ROW_UPDATED',
+          entityType: 'normalizedData',
+          entityId: rowId,
+          description: `Fila actualizada en lote ${id}`,
+          before,
+          after,
+          metadata: {
+            batchId: id,
+            changedFields: Object.keys(filteredUpdates),
+            userRole,
+          },
+        },
+        actor,
+      );
+    }
+
+    return res.json({
+      success: true,
+      message: 'Cambios aplicados',
+      data: {
+        updated: updatedRows.length,
+      },
+    });
+  }),
+);
+
+// Ruta para descargar datos normalizados como CSV
+router.get(
+  '/batches/:id/normalized/export',
+  requirePermission('codification.download'),
+  asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ success: false, message: 'Debe especificarse un ID de lote' });
+    }
+
+    const batch = await prisma.importBatch.findUnique({
+      where: { id },
+      select: { filename: true },
+    });
+
+    if (!batch) {
+      return res.status(404).json({ success: false, message: 'Lote no encontrado' });
+    }
+
+    // Obtener todos los datos normalizados del lote
+    const normalizedData = await prisma.normalizedData.findMany({
+      where: { batchId: id },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (normalizedData.length === 0) {
+      return res.status(404).json({ success: false, message: 'No hay datos normalizados para exportar' });
+    }
+
+    // Convertir a CSV
+    const firstRow = normalizedData[0];
+    if (!firstRow) {
+      return res.status(404).json({ success: false, message: 'No hay datos normalizados para exportar' });
+    }
+    const headers = Object.keys(firstRow);
+    const csvRows = normalizedData.map(row => {
+      return headers.map(header => {
+        const value = (row as any)[header];
+        if (value === null || value === undefined) return '';
+        if (typeof value === 'object') return JSON.stringify(value);
+        return String(value).replace(/"/g, '""');
+      }).map(v => `"${v}"`).join(',');
+    });
+
+    const csv = [
+      headers.map(h => `"${h}"`).join(','),
+      ...csvRows,
+    ].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="lote-${id}-${Date.now()}.csv"`);
+    return res.send('\ufeff' + csv); // BOM para Excel
   }),
 );
 
