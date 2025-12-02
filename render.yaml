@@ -19,10 +19,18 @@ services:
       - key: NODE_ENV
         value: production
 
-      # Las dos siguientes las llenarás en el panel (Render no las versiona)
+      # Las siguientes las llenarás en el panel (Render no las versiona)
       - key: DATABASE_URL
         sync: false
       - key: JWT_SECRET
+        sync: false
+      
+      # Variables de Auth0 (requeridas para autenticación)
+      - key: AUTH0_DOMAIN
+        sync: false
+      - key: AUTH0_AUDIENCE
+        sync: false
+      - key: AUTH0_CLIENT_ID
         sync: false
 
       - key: JWT_EXPIRES_IN
@@ -33,6 +41,10 @@ services:
         value: /var/data/uploads
       - key: MAX_FILE_SIZE
         value: "10485760"
+      
+      # CORS (ajusta según tu dominio de frontend en producción)
+      - key: CORS_ORIGIN
+        sync: false
 
     # Disco para uploads (opcional)
     disk:
