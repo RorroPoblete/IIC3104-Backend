@@ -21,3 +21,4 @@ else
   npx ts-node scripts/seed-users.ts
 fi
 
+
