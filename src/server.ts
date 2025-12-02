@@ -7,6 +7,14 @@ const port = env.appPort;
 
 const startServer = async () => {
   try {
+    // Log de configuración de Auth0 al iniciar
+    logger.info('Configuración de Auth0 al iniciar', {
+      hasDomain: !!env.auth0Domain,
+      hasAudience: !!env.auth0Audience,
+      hasClientId: !!env.auth0ClientId,
+      domain: env.auth0Domain ? `${env.auth0Domain.substring(0, 10)}...` : 'no configurado',
+    });
+
     await ensureDefaultUsers();
 
     app.listen(port, () => {

@@ -27,6 +27,19 @@ const jwks = jwksUri ? createRemoteJWKSet(jwksUri) : null;
 
 const missingAuthConfig = !issuer || !audience || !jwks;
 
+// Log de configuración al cargar el módulo (solo una vez)
+if (missingAuthConfig) {
+  const missingVars: string[] = [];
+  if (!env.auth0Domain) missingVars.push('AUTH0_DOMAIN');
+  if (!env.auth0Audience) missingVars.push('AUTH0_AUDIENCE');
+  logger.error('Configuración de Auth0 incompleta. Variables faltantes:', { 
+    missing: missingVars,
+    hasDomain: !!env.auth0Domain,
+    hasAudience: !!env.auth0Audience,
+    hasClientId: !!env.auth0ClientId,
+  });
+}
+
 // Cache simple para emails obtenidos desde /userinfo (evita rate limiting)
 // Key: sub (subject), Value: { email: string, expiresAt: number }
 const emailCache = new Map<string, { email: string; expiresAt: number }>();
@@ -41,8 +54,19 @@ const getBearerToken = (authorizationHeader?: string) => {
 
 export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   if (missingAuthConfig) {
-    logger.error('Faltan variables de entorno de Auth0. Revisar AUTH0_DOMAIN y AUTH0_AUDIENCE.');
-    return res.status(500).json({ message: 'Configuración de autenticación incompleta' });
+    const missingVars: string[] = [];
+    if (!env.auth0Domain) missingVars.push('AUTH0_DOMAIN');
+    if (!env.auth0Audience) missingVars.push('AUTH0_AUDIENCE');
+    
+    logger.error('Faltan variables de entorno de Auth0', { 
+      missing: missingVars,
+      path: req.path 
+    });
+    return res.status(500).json({ 
+      message: 'Configuración de autenticación incompleta',
+      missing: missingVars,
+      hint: 'Configura las variables de entorno AUTH0_DOMAIN y AUTH0_AUDIENCE en Render'
+    });
   }
 
   const token = getBearerToken(req.headers.authorization);
