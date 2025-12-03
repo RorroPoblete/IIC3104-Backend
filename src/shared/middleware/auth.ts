@@ -252,16 +252,46 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
       });
     }
 
-    const user = await prisma.user.findUnique({
+    let user = await prisma.user.findUnique({
       where: { email: emailFromToken },
     });
 
+    // Auto-registrar usuario si no existe (primer login)
     if (!user) {
-      logger.warn('Usuario no encontrado en base de datos', { 
+      logger.info('Nuevo usuario detectado, auto-registrando', { 
         email: emailFromToken,
         path: req.path 
       });
-      return res.status(403).json({ message: 'Usuario no autorizado para acceder' });
+      
+      try {
+        // Obtener nombre del token o usar email como fallback
+        const userName: string = (payload.name as string) || 
+                                 (payload.nickname as string) || 
+                                 emailFromToken.split('@')[0] ||
+                                 'Usuario';
+        
+        user = await prisma.user.create({
+          data: {
+            email: emailFromToken,
+            name: userName,
+            role: 'Codificador', // Rol por defecto para nuevos usuarios
+          },
+        });
+        
+        logger.info('Usuario auto-registrado exitosamente', { 
+          userId: user.id,
+          email: user.email,
+          role: user.role 
+        });
+      } catch (error) {
+        logger.error('Error auto-registrando usuario', { 
+          email: emailFromToken,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        return res.status(500).json({ 
+          message: 'Error registrando usuario automáticamente' 
+        });
+      }
     }
 
     req.authUser = {
